@@ -1,0 +1,30 @@
+model_params:
+  'input_dim': 1280  # The dimension of the input latent tensor
+  'output_dim': 1280  # Final output dimension (same as latent_dim for symmetry)
+  'latent_dim': 512
+  'num_heads': 8  # Number of attention heads
+  'attention_blocks': 3  # Number of attention layers
+  'attention_activation_fn': 'gelu'  # Activation function
+  'codebook_size': 5
+
+
+train_params:
+  task_name: 'VQVAE_sciplex'
+  batch_size: 16
+  epochs: 10
+  lr: 0.005
+  crit: 'l2'
+  reconstruction_loss_weight : 1
+  codebook_loss_weight : 1
+  commitment_loss_weight : 0.2
+  ckpt_name: 'best_vqvae_latent_2_codebook_5.pth'
+  seed: 111
+  save_training_image: True
+  train_adata_path: 'C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\data\\adata_train_v1.h5ad'
+  test_adata_path: 'C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\data\\adata_test_v1.h5ad'
+  output_train_dir: 'output'
+
+dataset_params:
+  embeddings: 'C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\raw-data\\uce_embeddings.pkl'
+  annotations: 'C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\raw-cell-data\\sciplex_obs_annot.tsv'
+  label_column: 'product_dose'
