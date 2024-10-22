@@ -163,3 +163,4 @@ cython_debug/
 
 data/
 raw-data/
+src/data_preprocessing/models/barlow_closed.pkl
