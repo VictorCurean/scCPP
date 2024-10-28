@@ -6,6 +6,7 @@ from tqdm import tqdm
 import math
 import yaml
 from torch.utils.data.dataloader import DataLoader
+import pickle as pkl
 
 from model import ConditionalFeedForwardNN
 from dataset import SciplexDatasetBaseline
@@ -45,6 +46,7 @@ def train(model, dataloader, optimizer, criterion, num_epochs, device):
 def test(model, dataloader, criterion, device):
     model.eval()
     test_losses = list()
+    res = list()
 
     with torch.no_grad():
         for inputs, targets in dataloader:
@@ -52,12 +54,15 @@ def test(model, dataloader, criterion, device):
             targets = targets.to(device)
 
             outputs = model(inputs)
+            res.append({"input": inputs, "targets": targets, "predicted": outputs})
+
             loss = criterion(outputs, targets)
 
             test_losses.append(loss.item())
 
         avg_loss = np.mean(test_losses)
         print(f"Test Loss: {avg_loss}")
+    return res
 
 
 if __name__ == "__main__":
@@ -88,4 +93,9 @@ if __name__ == "__main__":
     sciplex_loader_test = DataLoader(sciplex_dataset_test, batch_size=config['train_params']['batch_size'], shuffle=True, num_workers=0)
 
     print("Evaluating on test set ...")
-    loss = test(model, sciplex_loader_test, criterion, device)
+    results_test = test(model, sciplex_loader_test, criterion, device)
+
+
+    #TODO make results more descriptive
+    with open(ROOT + "results\\baseline_predictions.pkl", "wb") as f:
+        pkl.dump(results_test, f)
