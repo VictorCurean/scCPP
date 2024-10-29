@@ -61,13 +61,21 @@ class SciplexDatasetBaseline(Dataset):
                 #natural log of dose
                 dose = math.log1p(cell_meta['dose'])
 
+                #metadata
+                meta = dict()
+                meta['compound'] = cell_meta['product_name']
+                meta['dose'] = cell_meta['dose']
+                meta['cell_type'] = cell_meta['cell_type']
+
+
                 # Store the treated and matched control metadata
                 data_list.append({
                     "idx": idx,
                     "treated_emb": torch.tensor(cell_emb, dtype=torch.float),
                     "matched_control_emb": torch.tensor(matched_control, dtype=torch.float),
                     "drug_emb": torch.tensor(drug_emb, dtype=torch.float),
-                    "logdose": torch.tensor([dose], dtype=torch.float)
+                    "logdose": torch.tensor([dose], dtype=torch.float),
+                    "meta": meta
                 })
 
         self.data_processed = data_list
@@ -78,5 +86,6 @@ class SciplexDatasetBaseline(Dataset):
         #concatenate control, drug embedding, dose
         input = torch.cat([val['matched_control_emb'], val['drug_emb'], val['logdose']], dim=0)
         output = val['treated_emb']
+        meta = val['meta']
 
-        return input, output
+        return input, output, meta

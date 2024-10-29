@@ -18,7 +18,7 @@ def train(model, dataloader, optimizer, criterion, num_epochs, device):
     for epoch in range(num_epochs):
         losses = list()
 
-        for input, output_actual in tqdm(dataloader):
+        for input, output_actual, meta in tqdm(dataloader):
             # Move tensors to the specified device
             input = input.to(device)
             output_actual = output_actual.to(device)
@@ -47,14 +47,15 @@ def test(model, dataloader, criterion, device):
     model.eval()
     test_losses = list()
     res = list()
+    model_meta = model.get_meta()
 
     with torch.no_grad():
-        for inputs, targets in dataloader:
+        for inputs, targets, meta in dataloader:
             inputs = inputs.to(device)
             targets = targets.to(device)
 
             outputs = model(inputs)
-            res.append({"input": inputs, "targets": targets, "predicted": outputs})
+            res.append({"input": inputs, "targets": targets, "predicted": outputs, "meta": meta})
 
             loss = criterion(outputs, targets)
 
@@ -95,7 +96,5 @@ if __name__ == "__main__":
     print("Evaluating on test set ...")
     results_test = test(model, sciplex_loader_test, criterion, device)
 
-
-    #TODO make results more descriptive
     with open(ROOT + "results\\baseline_predictions.pkl", "wb") as f:
         pkl.dump(results_test, f)

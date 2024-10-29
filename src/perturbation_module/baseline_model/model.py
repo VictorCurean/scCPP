@@ -24,6 +24,14 @@ class ConditionalFeedForwardNN(nn.Module):
         # Define the sequential feedforward model
         self.network = nn.Sequential(*layers)
 
+        # Define meta-data for model
+        self.model_config = config['model_params']
+        self.train_config = config['train_params']
+
+    def get_meta(self):
+        return self.model_config, self.train_config
+
+
     def forward(self, input):
         # Pass through the network
         output = self.network(input)
