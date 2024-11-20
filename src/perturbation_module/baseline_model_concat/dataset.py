@@ -8,19 +8,22 @@ import math
 import anndata as ad
 import ast
 from tqdm import tqdm
+from sklearn.model_selection import train_test_split
 
 
 class SciplexDatasetBaseline(Dataset):
-    def __init__(self, adata_file, seed):
+    def __init__(self, adata_file, pct_train, split, random_state):
+        self.SEP = "_"
+        self.pct_train = pct_train
+        self.random_state = random_state
+        self.split = split
+
         self.adata = ad.read_h5ad(adata_file)
-        self.seed = seed
         self.data_processed = list()
         self.__match_control_to_treated()
 
-
     def __len__(self):
         # Return the number of samples
-        # TODO change this
         return len(self.data_processed)
 
     def __match_control_to_treated(self):
@@ -75,10 +78,20 @@ class SciplexDatasetBaseline(Dataset):
                     "matched_control_emb": torch.tensor(matched_control, dtype=torch.float),
                     "drug_emb": torch.tensor(drug_emb, dtype=torch.float),
                     "logdose": torch.tensor([dose], dtype=torch.float),
-                    "meta": meta
+                    "meta": meta,
+                    "drug_name": meta['compound']
                 })
 
-        self.data_processed = data_list
+        #split the drugs in train_test
+
+        unique_covs = list({item['drug_name'] for item in data_list})
+        cov_train, cov_test = train_test_split(unique_covs, train_size=self.pct_train, random_state=self.random_state)
+
+        if self.split == 'train':
+            self.data_processed = [item for item in data_list if item['cov_fullname'] in cov_train]
+        elif self.split == 'test':
+            self.data_processed = [item for item in data_list if item['cov_fullname'] in cov_test]
+
 
     def __getitem__(self, idx):
         val = self.data_processed[idx]

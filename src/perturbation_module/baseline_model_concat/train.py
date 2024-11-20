@@ -10,6 +10,7 @@ import pickle as pkl
 
 from model import ConditionalFeedForwardNN
 from dataset import SciplexDatasetBaseline
+from dataset_zhao import ZhaoDatasetBaseline
 
 def train(model, dataloader, optimizer, criterion, num_epochs, device):
     model = model.to(device)
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     criterion = nn.MSELoss()
 
     print("Reading dataset ...")
-    sciplex_dataset = SciplexDatasetBaseline(config['dataset_params']['train_adata_path'], config['dataset_params']['seed'])
+    sciplex_dataset = SciplexDatasetBaseline(config['dataset_params']['sciplex_adata_path'], 0.7, "train", config['dataset_params']['seed'])
     sciplex_loader = DataLoader(sciplex_dataset, batch_size=config['train_params']['batch_size'], shuffle=True, num_workers=0)
 
     print("Training model ...")
@@ -90,11 +91,23 @@ if __name__ == "__main__":
     trained_model = train(model, sciplex_loader, optimizer, criterion, num_epochs, device)
 
     print("Loading test data ...")
-    sciplex_dataset_test = SciplexDatasetBaseline(config['dataset_params']['test_adata_path'], config['dataset_params']['seed'])
+    sciplex_dataset_test = SciplexDatasetBaseline(config['dataset_params']['sciplex_adata_path'], 0.7, "test", config['dataset_params']['seed'])
     sciplex_loader_test = DataLoader(sciplex_dataset_test, batch_size=config['train_params']['batch_size'], shuffle=True, num_workers=0)
 
     print("Evaluating on test set ...")
     results_test = test(model, sciplex_loader_test, criterion, device)
 
-    with open(ROOT + "results\\baseline_predictions.pkl", "wb") as f:
+    print("Loading zhao data ...")
+    zhao_dataset = ZhaoDatasetBaseline(config['dataset_params']['zhao_adata_path'])
+    zhao_loader = DataLoader(zhao_dataset, batch_size=config['train_params']['batch_size'], shuffle=True, num_workers=0)
+
+    print("Evaluating on zhao set ...")
+    results_zhao = test(model, zhao_loader, criterion, device)
+
+    print("Saving ... ")
+
+    with open(ROOT + "results\\sciplex_predictions.pkl", "wb") as f:
         pkl.dump(results_test, f)
+
+    with open(ROOT + "results\\zhao_predictions.pkl", "wb") as f:
+        pkl.dump(results_zhao, f)
