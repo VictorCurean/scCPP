@@ -7,6 +7,8 @@ import math
 import yaml
 from torch.utils.data.dataloader import DataLoader
 import pickle as pkl
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from model import ConditionalFeedForwardNN
 from dataset import SciplexDatasetBaseline
@@ -15,9 +17,10 @@ from dataset_zhao import ZhaoDatasetBaseline
 def train(model, dataloader, optimizer, criterion, num_epochs, device):
     model = model.to(device)
     model.train()  # Set the model to training mode
+    losses = list()
 
     for epoch in range(num_epochs):
-        losses = list()
+
 
         for input, output_actual, meta in tqdm(dataloader):
             # Move tensors to the specified device
@@ -42,7 +45,7 @@ def train(model, dataloader, optimizer, criterion, num_epochs, device):
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {avg_loss:.4f}')
 
     print("Training completed.")
-    return model
+    return model, losses
 
 def test(model, dataloader, criterion, device):
     model.eval()
@@ -82,32 +85,47 @@ if __name__ == "__main__":
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.MSELoss()
 
+    with open(ROOT + "data\\sciplex\\drugs_train_list.txt", "r") as f:
+        drugs_train = [line.strip() for line in f]
+
+    with open(ROOT + "data\\sciplex\\drugs_validation_list.txt", "r") as f:
+        drugs_validation = [line.strip() for line in f]
+
     print("Reading dataset ...")
-    sciplex_dataset = SciplexDatasetBaseline(config['dataset_params']['sciplex_adata_path'], 0.7, "train", config['dataset_params']['seed'])
+    sciplex_dataset = SciplexDatasetBaseline(config['dataset_params']['sciplex_adata_path'], drugs_train)
     sciplex_loader = DataLoader(sciplex_dataset, batch_size=config['train_params']['batch_size'], shuffle=True, num_workers=0)
 
     print("Training model ...")
     num_epochs = config['train_params']['num_epochs']
-    trained_model = train(model, sciplex_loader, optimizer, criterion, num_epochs, device)
+    trained_model, losses = train(model, sciplex_loader, optimizer, criterion, num_epochs, device)
+
+    #plot the losses
+    index_losses = list(range(len(losses)))
+    sns.lineplot(x=index_losses, y=losses)
+    plt.ylabel("MSE")
+    plt.title("Train Loss")
+    plt.show()
 
     print("Loading test data ...")
-    sciplex_dataset_test = SciplexDatasetBaseline(config['dataset_params']['sciplex_adata_path'], 0.7, "test", config['dataset_params']['seed'])
+    sciplex_dataset_test = SciplexDatasetBaseline(config['dataset_params']['sciplex_adata_path'], drugs_validation)
     sciplex_loader_test = DataLoader(sciplex_dataset_test, batch_size=config['train_params']['batch_size'], shuffle=True, num_workers=0)
 
     print("Evaluating on test set ...")
-    results_test = test(model, sciplex_loader_test, criterion, device)
+    results_test = test(trained_model, sciplex_loader_test, criterion, device)
 
-    print("Loading zhao data ...")
-    zhao_dataset = ZhaoDatasetBaseline(config['dataset_params']['zhao_adata_path'])
-    zhao_loader = DataLoader(zhao_dataset, batch_size=config['train_params']['batch_size'], shuffle=True, num_workers=0)
-
-    print("Evaluating on zhao set ...")
-    results_zhao = test(model, zhao_loader, criterion, device)
+    # print("Loading zhao data ...")
+    # zhao_dataset = ZhaoDatasetBaseline(config['dataset_params']['zhao_adata_path'])
+    # zhao_loader = DataLoader(zhao_dataset, batch_size=config['train_params']['batch_size'], shuffle=True, num_workers=0)
+    #
+    # print("Evaluating on zhao set ...")
+    # results_zhao = test(trained_model, zhao_loader, criterion, device)
 
     print("Saving ... ")
 
-    with open(ROOT + "results\\sciplex_predictions.pkl", "wb") as f:
+    torch.save(trained_model, ROOT + "results\\baseline\\model.pth")
+
+    with open(ROOT + "results\\baseline\\sciplex_predictions.pkl", "wb") as f:
         pkl.dump(results_test, f)
 
-    with open(ROOT + "results\\zhao_predictions.pkl", "wb") as f:
-        pkl.dump(results_zhao, f)
+    # with open(ROOT + "results\\zhao_predictions.pkl", "wb") as f:
+    #     pkl.dump(results_zhao, f)

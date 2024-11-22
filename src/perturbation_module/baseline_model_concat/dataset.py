@@ -12,11 +12,9 @@ from sklearn.model_selection import train_test_split
 
 
 class SciplexDatasetBaseline(Dataset):
-    def __init__(self, adata_file, pct_train, split, random_state):
+    def __init__(self, adata_file, drug_list):
         self.SEP = "_"
-        self.pct_train = pct_train
-        self.random_state = random_state
-        self.split = split
+        self.drug_list = drug_list
 
         self.adata = ad.read_h5ad(adata_file)
         self.data_processed = list()
@@ -41,6 +39,9 @@ class SciplexDatasetBaseline(Dataset):
             cell_emb = adata.X[idx]
 
             if cell_meta['product_name'] == 'Vehicle':
+                continue
+
+            if cell_meta['product_name'] not in self.drug_list:
                 continue
 
             else:
@@ -81,17 +82,7 @@ class SciplexDatasetBaseline(Dataset):
                     "meta": meta,
                     "drug_name": meta['compound']
                 })
-
-        #split the drugs in train_test
-
-        unique_covs = list({item['drug_name'] for item in data_list})
-        cov_train, cov_test = train_test_split(unique_covs, train_size=self.pct_train, random_state=self.random_state)
-
-        if self.split == 'train':
-            self.data_processed = [item for item in data_list if item['cov_fullname'] in cov_train]
-        elif self.split == 'test':
-            self.data_processed = [item for item in data_list if item['cov_fullname'] in cov_test]
-
+        self.data_processed = data_list
 
     def __getitem__(self, idx):
         val = self.data_processed[idx]
