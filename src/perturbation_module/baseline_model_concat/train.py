@@ -113,16 +113,10 @@ if __name__ == "__main__":
     print("Evaluating on test set ...")
     results_test = test(trained_model, sciplex_loader_test, criterion, device)
 
-    # print("Loading zhao data ...")
-    # zhao_dataset = ZhaoDatasetBaseline(config['dataset_params']['zhao_adata_path'])
-    # zhao_loader = DataLoader(zhao_dataset, batch_size=config['train_params']['batch_size'], shuffle=True, num_workers=0)
-    #
-    # print("Evaluating on zhao set ...")
-    # results_zhao = test(trained_model, zhao_loader, criterion, device)
 
     print("Saving ... ")
 
-    torch.save(trained_model, ROOT + "results\\baseline\\model.pth")
+    torch.save(trained_model.state_dict(), ROOT + "results\\baseline\\model_weights.pth")
 
     with open(ROOT + "results\\baseline\\sciplex_predictions.pkl", "wb") as f:
         pkl.dump(results_test, f)

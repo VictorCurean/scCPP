@@ -27,7 +27,13 @@ class ZhaoDatasetBaseline(Dataset):
 
             control_X = adata_subset[adata_subset.obs['perturbation'] == "control"].obsm['X_uce']
 
-            for pert in list(adata_subset.obs['perturbation'].unique()).remove("control"):
+            perturbations = list(adata_subset.obs['perturbation'].unique())
+            perturbations.remove("control")
+
+            if len(perturbations) == 0:
+                print(sample, "has no perturbations, skipping ...")
+
+            for pert in perturbations:
 
                 adata_perturbed = adata_subset[adata_subset.obs['perturbation'] == pert]
 
@@ -36,12 +42,12 @@ class ZhaoDatasetBaseline(Dataset):
                     cell_meta = adata_perturbed.obs.iloc[idx]
 
                     random_row_idx = np.random.choice(control_X.shape[0])
-                    matched_control = control_pool[random_row_idx]
+                    matched_control = control_X[random_row_idx]
 
                     dose_raw = cell_meta['dose_value']
                     dose_unit = cell_meta['dose_unit']
 
-
+                    dose_raw = float(dose_raw)
 
                     if dose_unit == "uM":
                         dose = dose_raw * 1000
@@ -52,7 +58,7 @@ class ZhaoDatasetBaseline(Dataset):
 
                     dose = math.log1p(dose)
 
-                    drug_emb = cell_meta['sm_emb']
+                    drug_emb =  ast.literal_eval(cell_meta['sm_emb'])
 
                     meta = dict()
                     meta['compound'] = cell_meta['perturbation']
