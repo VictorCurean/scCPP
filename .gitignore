@@ -165,3 +165,4 @@ data/
 raw-data/
 src/data_preprocessing/models/barlow_closed.pkl
 results/
+src/VARS.py

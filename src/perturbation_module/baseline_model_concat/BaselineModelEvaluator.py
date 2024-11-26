@@ -17,12 +17,13 @@ from dataset_zhao import ZhaoDatasetBaseline
 
 from ModelEvaluator import ModelEvaluator
 from PerformancePlots import plot_css, plot_mse, plot_r2
+from src.VARS import VARS
 
 
 class BaselineModelEvaluator(ModelEvaluator):
 
     def __init__(self):
-        self.ROOT = 'C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\'
+        self.ROOT = VARS.ROOT
         self.initialize()
 
     def initialize(self):
@@ -328,6 +329,23 @@ class BaselineModelEvaluator(ModelEvaluator):
         plot_r2(self.adata_zhao_results)
 
         #see classifier performance
+        X_model = adata_zhao_results[adata_zhao_results.obs['data_type'] == "predicted"]
+        pred_y = classifier.predict(X_model)
+
+        data_barplot = pd.DataFrame({
+            'Category': ['Predicted Treated' if y == 1 else 'Predicted Control' for y in pred_y]
+        })
+
+        # Count the occurrences of each category
+        counts = data_barplot['Category'].value_counts().reset_index()
+        counts.columns = ['Category', 'Count']
+
+        # Plot the bar chart
+        sns.barplot(x='Category', y='Count', data=counts, palette='pastel')
+        plt.title('Distribution of Predicted Categories')
+        plt.ylabel('Count')
+        plt.xlabel('Category')
+        plt.show()
 
 
 
