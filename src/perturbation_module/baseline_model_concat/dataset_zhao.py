@@ -12,8 +12,8 @@ from sklearn.model_selection import train_test_split
 
 
 class ZhaoDatasetBaseline(Dataset):
-    def __init__(self, adata_file):
-        self.adata = ad.read_h5ad(adata_file)
+    def __init__(self, adata):
+        self.adata = adata
         self.data_processed = list()
         self.__match_control_to_treated()
 
