@@ -10,8 +10,8 @@ train_params:
   lr: 0.0001
 
 dataset_params:
-  sciplex_adata_path: "C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\data\\sciplex\\sciplex_preprocessed.h5ad"
-  zhao_adata_path: "C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\data\\zhao\\zhao_preprocessed.h5ad"
-  sciplex_drugs_train: "C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\data\\sciplex\\drugs_train_list_TEST.txt"
-  sciplex_drugs_test: "C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\data\\sciplex\\drugs_validation_list_TEST.txt"
+  sciplex_adata_path: "/home/victor/projects/dege-fm/data/sciplex/sciplex_preprocessed.h5ad"
+  zhao_adata_path: "/home/victor/projects/dege-fm/data/zhao/zhao_preprocessed.h5ad"
+  sciplex_drugs_train: "/home/victor/projects/dege-fm/data/sciplex/drugs_train_list.txt"
+  sciplex_drugs_test: "/home/victor/projects/dege-fm/data/sciplex/drugs_validation_list.txt"
   seed: 1702
