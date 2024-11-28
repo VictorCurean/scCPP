@@ -163,6 +163,6 @@ cython_debug/
 
 data/
 raw-data/
-src/data_preprocessing/models/barlow_closed.pkl
+src/TO_REFACTOR/data_preprocessing/models/barlow_closed.pkl
 results/
 src/VARS.py

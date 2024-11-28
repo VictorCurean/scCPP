@@ -28,6 +28,8 @@ class ZhaoDatasetBaseline(Dataset):
             control_X = adata_subset[adata_subset.obs['perturbation'] == "control"].obsm['X_uce']
 
             perturbations = list(adata_subset.obs['perturbation'].unique())
+
+            print(perturbations)
             perturbations.remove("control")
 
             if len(perturbations) == 0:

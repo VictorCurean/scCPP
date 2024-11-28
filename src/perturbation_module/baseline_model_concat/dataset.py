@@ -28,6 +28,9 @@ class SciplexDatasetBaseline(Dataset):
         #np.random.seed(self.seed)
         adata = self.adata
 
+        #filter only drugs of interest
+        #adata = adata[adata.obs['product_name'].isin(self.drug_list + ['Vehicle'])]
+
         control_A549 = adata[(adata.obs['cell_type'] == "A549") & (adata.obs['product_name'] == "Vehicle")].X
         control_K562 = adata[ (adata.obs['cell_type'] == "K562") & (adata.obs['product_name'] == "Vehicle")].X
         control_MCF7 = adata[ (adata.obs['cell_type'] == "MCF7") & (adata.obs['product_name'] == "Vehicle")].X
@@ -79,8 +82,7 @@ class SciplexDatasetBaseline(Dataset):
                     "matched_control_emb": torch.tensor(matched_control, dtype=torch.float),
                     "drug_emb": torch.tensor(drug_emb, dtype=torch.float),
                     "logdose": torch.tensor([dose], dtype=torch.float),
-                    "meta": meta,
-                    "drug_name": meta['compound']
+                    "meta": meta
                 })
         self.data_processed = data_list
 
@@ -88,8 +90,10 @@ class SciplexDatasetBaseline(Dataset):
         val = self.data_processed[idx]
 
         #concatenate control, drug embedding, dose
-        input = torch.cat([val['matched_control_emb'], val['drug_emb'], val['logdose']], dim=0)
-        output = val['treated_emb']
+        control_emb = val['matched_control_emb']
+        drug_emb = val['drug_emb']
+        logdose = val['logdose']
+        treated_emb = val['treated_emb']
         meta = val['meta']
 
-        return input, output, meta
+        return control_emb, drug_emb, logdose, treated_emb, meta

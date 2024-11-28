@@ -5,10 +5,13 @@ model_params:
   hidden_dims: [2560, 1280, 1280]
 
 train_params:
-  num_epochs: 3
+  num_epochs: 1
   batch_size: 128
+  lr: 0.0001
 
 dataset_params:
   sciplex_adata_path: "C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\data\\sciplex\\sciplex_preprocessed.h5ad"
   zhao_adata_path: "C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\data\\zhao\\zhao_preprocessed.h5ad"
+  sciplex_drugs_train: "C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\data\\sciplex\\drugs_train_list_TEST.txt"
+  sciplex_drugs_test: "C:\\Users\\curea\\Documents\\bioFM for drug discovery\\dege-fm\\data\\sciplex\\drugs_validation_list_TEST.txt"
   seed: 1702

@@ -1,34 +1,33 @@
 import math
 import yaml
+import numpy as np
+import seaborn as sns
+import anndata as add
+import pandas as pd
+import scanpy as sc
+from tqdm import tqdm
 import torch
 import torch.optim as optim
 import torch.nn as nn
-import numpy as np
-from tqdm import tqdm
 from torch.utils.data.dataloader import DataLoader
-import pickle as pkl
-import seaborn as sns
 import matplotlib.pyplot as plt
-import anndata as ad
+from scipy.spatial.distance import euclidean
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, confusion_matrix, precision_recall_curve, auc, precision_score, recall_score
+from sklearn.ensemble import RandomForestClassifier
 
 from model import ConditionalFeedForwardNN
 from dataset import SciplexDatasetBaseline
 from dataset_zhao import ZhaoDatasetBaseline
 
-from ModelEvaluator import ModelEvaluator
-from PerformancePlots import plot_css, plot_mse, plot_r2
-from src.VARS import VARS
 
+class BaselineModelEvaluator():
 
-class BaselineModelEvaluator(ModelEvaluator):
-
-    def __init__(self):
-        self.ROOT = VARS.ROOT
-        self.initialize()
-
-    def initialize(self):
-        #load config file
-        self.__read_config()
+    def __init__(self, config_path):
+        # load config file
+        self.__read_config(config_path)
 
         #prepare model
         self.__prepare_model()
@@ -36,11 +35,8 @@ class BaselineModelEvaluator(ModelEvaluator):
         #read data
         self.__read_data()
 
-
-    def __read_config(self):
-        # load config file
-        print("Reading config file ...")
-        with open(self.ROOT + "config\\baseline.yaml", 'r') as file:
+    def __read_config(self, config_path):
+        with open(config_path, 'r') as file:
             try:
                 self.config = yaml.safe_load(file)
             except yaml.YAMLError as exc:
@@ -48,24 +44,28 @@ class BaselineModelEvaluator(ModelEvaluator):
                 raise RuntimeError(exc)
 
     def __prepare_model(self):
-        print("Preparing model ...")
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = ConditionalFeedForwardNN(self.config)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
-        self.criterion = nn.MSELoss()
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.config['train_params']['lr'])
+        #self.criterion = nn.MSELoss()
+        self.criterion = nn.L1Loss()
+
         self.model = self.model.to(self.device)
 
     def __read_data(self):
-        with open(self.ROOT + "data\\sciplex\\drugs_train_list.txt", "r") as f:
+
+        #list of drugs to include in the training and test splot
+
+        with open(self.config['dataset_params']['sciplex_drugs_train'], "r") as f:
             drugs_train = [line.strip() for line in f]
 
-        with open(self.ROOT + "data\\sciplex\\drugs_validation_list.txt", "r") as f:
+        with open(self.config['dataset_params']['sciplex_drugs_test'], "r") as f:
             drugs_validation = [line.strip() for line in f]
 
         print("Loading train dataset ...")
-        sciplex_dataset = SciplexDatasetBaseline(self.config['dataset_params']['sciplex_adata_path'],
+        sciplex_dataset_train = SciplexDatasetBaseline(self.config['dataset_params']['sciplex_adata_path'],
                                                       drugs_train)
-        self.sciplex_loader = DataLoader(sciplex_dataset, batch_size=self.config['train_params']['batch_size'],
+        self.sciplex_loader_train = DataLoader(sciplex_dataset_train, batch_size=self.config['train_params']['batch_size'],
                                          shuffle=True,
                                          num_workers=0)
 
@@ -73,11 +73,6 @@ class BaselineModelEvaluator(ModelEvaluator):
         sciplex_dataset_test = SciplexDatasetBaseline(self.config['dataset_params']['sciplex_adata_path'], drugs_validation)
         self.sciplex_loader_test = DataLoader(sciplex_dataset_test, batch_size=self.config['train_params']['batch_size'],
                                          shuffle=True, num_workers=0)
-
-        # print("Loading zhao test dataset ...")
-        # zhao_dataset = ZhaoDatasetBaseline(self.config['dataset_params']['zhao_adata_path'])
-        # self.zhao_loader = DataLoader(zhao_dataset, batch_size=self.config['train_params']['batch_size'], shuffle=True, num_workers=0)
-
 
     def train(self):
         print("Begin training ... ")
@@ -88,16 +83,23 @@ class BaselineModelEvaluator(ModelEvaluator):
 
         for epoch in range(num_epochs):
 
-            for input, output_actual, meta in tqdm(self.sciplex_loader):
+            for control_emb, drug_emb, logdose, treated_emb, meta in tqdm(self.sciplex_loader_train):
+
+                input = torch.cat([control_emb, drug_emb, logdose], dim=-1)
                 # Move tensors to the specified device
+
                 input = input.to(self.device)
-                output_actual = output_actual.to(self.device)
+                treated_emb = treated_emb.to(self.device)
 
                 self.optimizer.zero_grad()
 
                 output = self.model(input)
 
-                loss = self.criterion(output, output_actual)
+                loss = self.criterion(output, treated_emb)
+                #loss = euclidean(output.cpu(), treated_emb.cpu())
+
+
+                print(loss)
 
                 loss.backward()
 
@@ -110,255 +112,82 @@ class BaselineModelEvaluator(ModelEvaluator):
 
         print("Training completed ...")
 
-    def __validate_sciplex(self):
+    def test(self):
+        self.control_embeddings = list()
+        self.treated_embeddings = list()
+        self.model_output = list()
+        self.compounds = list()
+        self.doses = list()
+        self.cell_types = list()
 
-        print("Inferring on sciplex test dataset ...")
-
-        self.trained_model.eval()
-        validation_results_sciplex = list()
-
-        with torch.no_grad():
-            for inputs, targets, meta in self.sciplex_loader_test:
-                inputs = inputs.to(self.device)
-                targets = targets.to(self.device)
-
-                outputs = self.trained_model(inputs)
-                validation_results_sciplex.append({"input": inputs, "targets": targets, "predicted": outputs, "meta": meta})
-
-        targets = list()
-        predicted = list()
-        input = list()
-        meta = list()
-
-        for x in tqdm(validation_results_sciplex):
-
-            assert x['targets'].shape == x['predicted'].shape
-
-            for i in range(x['targets'].shape[0]):
-                targets.append(x['targets'][i].cpu().numpy())
-
-            for i in range(x['predicted'].shape[0]):
-                predicted.append(x['predicted'][i].cpu().numpy())
-
-            for i in range(x['input'].shape[0]):
-                input.append(x['input'][i].cpu().numpy()[:1280])
-
-            compound_list = x['meta']['compound']
-            dose_list = x['meta']['dose'].tolist()
-            cell_type = x['meta']['cell_type']
-
-            for i in range(len(compound_list)):
-                meta.append(compound_list[i] + "_" + str(dose_list[i]) + "_" + cell_type[i])
-
-        df_targets = pd.DataFrame(targets)
-        df_predicted = pd.DataFrame(predicted)
-        df_input = pd.DataFrame(input)
-
-        df_targets['data_type'] = "target"
-        df_predicted['data_type'] = "predicted"
-        df_input['data_type'] = "input"
-
-        df_targets['condition'] = meta
-        df_predicted['condition'] = meta
-        df_input['condition'] = meta
-
-        del meta
-
-        df = pd.concat([df_targets, df_predicted, df_input], axis=0, ignore_index=True)
-
-        del df_targets
-        del df_predicted
-        del df_input
-
-        X = df.iloc[:, :1280].values
-        obs = df[['condition', 'data_type', 'cell_type']]
-
-        del df
-
-        self.adata_zhao_sciplex= ad.AnnData(X=X, obs=obs)
-
-        del X
-        del obs
-
-
-
-    def __validate_zhao(self):
-        print("Inferring on sciplex test dataset ...")
 
         self.trained_model.eval()
 
-        adata_zhao = ad.read_h5ad(self.ROOT + "data\\zhao\\zhao_preprocessed.h5ad")
-
-        for sample in adata.obs['sample'].unique():
-            ad = adata[adata.obs['sample'] == sample]
-
-            perturbations = list(ad.obs['perturbation'].unique())
-
-            # build control, perturbed samples
-            X_control = ad[ad.obs['perturbation'] == "control"].obsm['X_uce']
-            y_control = [0 for _ in range(X_control.shape[0])]
-
-            # for each individual treatment, build a classifier
-            for prt in perturbations:
-                if prt == 'control':
-                    continue
-
-                classifier = self.__per_sample_classifier(ad, sample, prt)
-
-                self.__per_sample_prediction(ad, sample, prt, classifier)
-
-
-    def __per_sample_classifier(self, ad, sample, perturbation):
-
-            X_prt = ad[ad.obs['perturbation'] == prt].obsm['X_uce']
-            y_prt = [1 for _ in range(X_prt.shape[0])]
-
-            X = np.vstack((X_control, X_prt))
-            y = np.array(y_control + y_prt)
-
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=1702)
-
-            classifier = LogisticRegression(random_state=1702, max_iter=1000, class_weight='balanced')
-            classifier.fit(X_train, y_train)
-
-            y_pred = classifier.predict(X_test)
-            y_pred_proba = classifier.predict_proba(X_test)[:, 1]
-
-            # Calculate performance metrics
-            accuracy = accuracy_score(y_test, y_pred)
-            f1 = f1_score(y_test, y_pred)
-            roc_auc = roc_auc_score(y_test, y_pred_proba)
-
-            print("Classification Report:\n",
-                  classification_report(y_test, y_pred, target_names=["Control", "Perturbed"]))
-
-            # Calculate confusion matrix and plot it
-            cm = confusion_matrix(y_test, y_pred)
-            plt.figure(figsize=(10, 4))
-
-            # Confusion Matrix Plot
-            plt.subplot(1, 2, 1)
-            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Control', 'Treatment'],
-                        yticklabels=['Control', 'Treatment'])
-            plt.title(f"Confusion Matrix - {sample} ({prt})")
-            plt.xlabel("Predicted")
-            plt.ylabel("Actual")
-
-            # Precision-Recall Curve Plot
-            precision, recall, _ = precision_recall_curve(y_test, y_pred_proba)
-            pr_auc = auc(recall, precision)
-            plt.subplot(1, 2, 2)
-            plt.plot(recall, precision, label=f"PR AUC = {pr_auc:.3f}")
-            plt.xlabel("Recall")
-            plt.ylabel("Precision")
-            plt.title(f"Precision-Recall Curve - {sample} ({prt})")
-            plt.legend()
-
-            # Show both plots together for each treatment
-            plt.tight_layout()
-            plt.show()
-
-            return classifier
-
-    def __per_sample_prediction(self, ad, sample, prt, classifier):
-
-        adata = ad[ad.obs['perturbation'] == prt]
-
-        zhao_dataset = ZhaoDatasetBaseline(adata)
-        zhao_loader = DataLoader(zhao_loader, batch_size=32)
-
-        validation_results_zhao = list()
-
-
         with torch.no_grad():
-            for inputs, targets, meta in zhao_loader:
-                inputs = inputs.to(self.device)
-                targets = targets.to(self.device)
+            for control_emb, drug_emb, logdose, treated_emb, meta in tqdm(self.sciplex_loader_test):
+                input = torch.cat([control_emb, drug_emb, logdose], dim=-1)
+                input = input.to(self.device)
+                treated_emb = treated_emb.to(self.device)
 
-                outputs = self.trained_model(inputs)
-                validation_results_zhao.append(
-                    {"input": inputs, "targets": targets, "predicted": outputs, "meta": meta})
-
-        targets = list()
-        predicted = list()
-        input = list()
-        meta = list()
-
-        for x in tqdm(validation_results_zhao):
-
-            assert x['targets'].shape == x['predicted'].shape
-
-            for i in range(x['targets'].shape[0]):
-                targets.append(x['targets'][i].cpu().numpy())
-
-            for i in range(x['predicted'].shape[0]):
-                predicted.append(x['predicted'][i].cpu().numpy())
-
-            for i in range(x['input'].shape[0]):
-                input.append(x['input'][i].cpu().numpy()[:1280])
-
-            compound_list = x['meta']['compound']
-            dose_list = x['meta']['dose'].tolist()
-            sample = x['meta']['sample'].tolist()
-
-            for i in range(len(compound_list)):
-                meta.append(compound_list[i] + "_" + str(dose_list[i]) + "_" + cell_type[i])
-
-        df_targets = pd.DataFrame(targets)
-        df_predicted = pd.DataFrame(predicted)
-        df_input = pd.DataFrame(input)
-
-        df_targets['data_type'] = "target"
-        df_predicted['data_type'] = "predicted"
-        df_input['data_type'] = "input"
-
-        df_targets['condition'] = meta
-        df_predicted['condition'] = meta
-        df_input['condition'] = meta
-
-        df = pd.concat([df_targets, df_predicted, df_input], axis=0, ignore_index=True)
-
-        X = df.iloc[:, :1280].values
-        obs = df[['condition', 'data_type']]
-
-        adata_zhao_results = ad.AnnData(X=X, obs=obs)
+                output = self.trained_model(input)
 
 
-        plot_css(self.adata_zhao_results)
-        plot_mse(self.adata_zhao_results)
-        plot_r2(self.adata_zhao_results)
+                loss = self.criterion(output, treated_emb)
 
-        #see classifier performance
-        X_model = adata_zhao_results[adata_zhao_results.obs['data_type'] == "predicted"]
-        pred_y = classifier.predict(X_model)
+                #decompose it into lists
+                control_emb = [x.cpu() for x in list(torch.unbind(control_emb, dim=0))]
+                #drug_emb = torch.unbind(drug_emb, dim=0)
+                #logdose = torch.unbind(logdose, dim=0)
+                treated_emb = [x.cpu() for x in list(torch.unbind(treated_emb, dim=0))]
+                output = [x.cpu() for x in list(torch.unbind(output, dim=0))]
 
-        data_barplot = pd.DataFrame({
-            'Category': ['Predicted Treated' if y == 1 else 'Predicted Control' for y in pred_y]
+                compounds = meta['compound']
+                doses = meta['dose']
+                cell_types = meta['cell_type']
+
+                self.control_embeddings += control_emb
+                self.treated_embeddings += treated_emb
+                self.model_output += output
+                self.compounds += compounds
+                self.doses += doses
+                self.cell_types += cell_types
+
+        self.test_results = pd.DataFrame({
+            "ctrl_emb": self.control_embeddings,
+            "pert_emb": self.treated_embeddings,
+            "pred_emb": self.model_output,
+            "compound": self.compounds,
+            "dose": self.doses,
+            "cell_type": self.cell_types,
         })
 
-        # Count the occurrences of each category
-        counts = data_barplot['Category'].value_counts().reset_index()
-        counts.columns = ['Category', 'Count']
+    def plot_stats(self):
+        dist_ctrl_pert = list()
+        dist_ctrl_pred = list()
+        dist_pert_pred = list()
 
-        # Plot the bar chart
-        sns.barplot(x='Category', y='Count', data=counts, palette='pastel')
-        plt.title('Distribution of Predicted Categories')
-        plt.ylabel('Count')
-        plt.xlabel('Category')
+        for x in self.test_results.iterrows():
+            dist_ctrl_pert.append(euclidean(row['ctrl_emb'], row['pert_emb']))
+            dist_ctrl_pred.append(euclidean(row['ctrl_emb'], row['pred_emb']))
+            dist_pert_pred.append(euclidean(row['pert_emb'], row['pred_emb']))
+
+        data = pd.DataFrame({
+            "Value": dist_ctrl_pert + dist_ctrl_pred + dist_pert_pred,
+            "Category": (
+                    ["ctrl_pert"] * len(dist_ctrl_pert) +
+                    ["ctrl_pred"] * len(dist_ctrl_pred) +
+                    ["pert_pred"] * len(dist_pert_pred)
+            )
+        })
+
+        # Create the boxplot
+        plt.figure(figsize=(8, 6))
+        sns.boxplot(x="Category", y="Value", data=data, palette="Set2")
+
+        # Add titles and labels
+        plt.title("Distribution of Distances", fontsize=16)
+        plt.xlabel("Samples", fontsize=14)
+        plt.ylabel("Euclidean Distance between embeddings", fontsize=14)
         plt.show()
 
-
-
-    def model_report_zhao(self):
-        self.__validate_zhao()
-        plot_css(self.adata_zhao_results)
-        plot_mse(self.adata_zhao_results)
-        plot_r2(self.adata_zhao_results)
-
-    def model_report_sciplex(self):
-        self.__validate_sciplex()
-        plot_css(self.adata_zhao_results)
-        plot_mse(self.adata_zhao_results)
-        plot_r2(self.adata_zhao_results)
-
-
+            
