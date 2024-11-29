@@ -135,11 +135,11 @@ class BaselineModelEvaluator():
                 loss = self.criterion(output, treated_emb)
 
                 #decompose it into lists
-                control_emb = [x.cpu() for x in list(torch.unbind(control_emb, dim=0))]
+                control_emb = [x.cpu().numpy() for x in list(torch.unbind(control_emb, dim=0))]
                 #drug_emb = torch.unbind(drug_emb, dim=0)
                 #logdose = torch.unbind(logdose, dim=0)
-                treated_emb = [x.cpu() for x in list(torch.unbind(treated_emb, dim=0))]
-                output = [x.cpu() for x in list(torch.unbind(output, dim=0))]
+                treated_emb = [x.cpu().numpy() for x in list(torch.unbind(treated_emb, dim=0))]
+                output = [x.cpu().numpy() for x in list(torch.unbind(output, dim=0))]
 
                 compounds = meta['compound']
                 doses = meta['dose']
@@ -166,7 +166,7 @@ class BaselineModelEvaluator():
         dist_ctrl_pred = list()
         dist_pert_pred = list()
 
-        for x in self.test_results.iterrows():
+        for i, row in self.test_results.iterrows():
             dist_ctrl_pert.append(euclidean(row['ctrl_emb'], row['pert_emb']))
             dist_ctrl_pred.append(euclidean(row['ctrl_emb'], row['pred_emb']))
             dist_pert_pred.append(euclidean(row['pert_emb'], row['pred_emb']))
