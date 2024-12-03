@@ -17,6 +17,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, confusion_matrix, precision_recall_curve, auc, precision_score, recall_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics.pairwise import cosine_similarity
 
 from model import ConditionalFeedForwardNN
 from dataset import SciplexDatasetBaseline
@@ -99,7 +100,6 @@ class BaselineModelEvaluator():
                 #loss = euclidean(output.cpu(), treated_emb.cpu())
 
 
-                print(loss)
 
                 loss.backward()
 
@@ -162,6 +162,13 @@ class BaselineModelEvaluator():
         })
 
     def plot_stats(self):
+        self.__plot_euclidean_distance()
+        self.__plot_cosine_similarity()
+        self.__plot_r_squared()
+        self.__plot_training_loss()
+
+
+    def __plot_euclidean_distance(self):
         dist_ctrl_pert = list()
         dist_ctrl_pred = list()
         dist_pert_pred = list()
@@ -190,4 +197,88 @@ class BaselineModelEvaluator():
         plt.ylabel("Euclidean Distance between embeddings", fontsize=14)
         plt.show()
 
-            
+    def __plot_cosine_similarity(self):
+        sim_ctrl_pert = list()
+        sim_ctrl_pred = list()
+        sim_pert_pred = list()
+
+        for i, row in self.test_results.iterrows():
+            # Calculate cosine similarity
+            sim_ctrl_pert.append(cosine_similarity([row['ctrl_emb']], [row['pert_emb']])[0, 0])
+            sim_ctrl_pred.append(cosine_similarity([row['ctrl_emb']], [row['pred_emb']])[0, 0])
+            sim_pert_pred.append(cosine_similarity([row['pert_emb']], [row['pred_emb']])[0, 0])
+
+        data = pd.DataFrame({
+            "Value": sim_ctrl_pert + sim_ctrl_pred + sim_pert_pred,
+            "Category": (
+                    ["ctrl_pert"] * len(sim_ctrl_pert) +
+                    ["ctrl_pred"] * len(sim_ctrl_pred) +
+                    ["pert_pred"] * len(sim_pert_pred)
+            )
+        })
+
+        # Create the boxplot
+        plt.figure(figsize=(8, 6))
+        sns.boxplot(x="Category", y="Value", data=data, palette="Set2")
+
+        # Add titles and labels
+        plt.title("Distribution of Cosine Similarity", fontsize=16)
+        plt.xlabel("Samples", fontsize=14)
+        plt.ylabel("Cosine Similarity between embeddings", fontsize=14)
+        plt.ylim(0, 1)  # Cosine similarity values are between 0 and 1
+        plt.show()
+
+    def __plot_r_squared(self):
+        r2_ctrl_pert = list()
+        r2_ctrl_pred = list()
+        r2_pert_pred = list()
+
+        for i, row in self.test_results.iterrows():
+            # Compute R-squared for each pair
+            r2_ctrl_pert.append(self.__compute_r_squared(row['ctrl_emb'], row['pert_emb']))
+            r2_ctrl_pred.append(self.__compute_r_squared(row['ctrl_emb'], row['pred_emb']))
+            r2_pert_pred.append(self.__compute_r_squared(row['pert_emb'], row['pred_emb']))
+
+        data = pd.DataFrame({
+            "Value": r2_ctrl_pert + r2_ctrl_pred + r2_pert_pred,
+            "Category": (
+                    ["ctrl_pert"] * len(r2_ctrl_pert) +
+                    ["ctrl_pred"] * len(r2_ctrl_pred) +
+                    ["pert_pred"] * len(r2_pert_pred)
+            )
+        })
+
+        # Create the boxplot
+        plt.figure(figsize=(8, 6))
+        sns.boxplot(x="Category", y="Value", data=data, palette="Set2")
+
+        # Add titles and labels
+        plt.title("Distribution of R-squared", fontsize=16)
+        plt.xlabel("Samples", fontsize=14)
+        plt.ylabel("R-squared between embeddings", fontsize=14)
+        plt.ylim(-1, 1)  # R-squared can range from -1 to 1
+        plt.show()
+
+    def __compute_r_squared(self, y_true, y_pred):
+        """Helper function to calculate R-squared."""
+        y_true = np.array(y_true)
+        y_pred = np.array(y_pred)
+
+        ss_res = np.sum((y_true - y_pred) ** 2)
+        ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+
+        return 1 - (ss_res / ss_tot) if ss_tot > 0 else float('nan')
+
+    def __plot_training_loss(self):
+        plt.figure(figsize=(8, 6))
+        index_losses = list(range(len(self.losses_train)))
+        sns.lineplot(x=index_losses, y=self.losses_train)
+        plt.ylabel("MAE")
+        plt.xlabel("Iteration")
+        plt.title("Train Loss")
+        plt.show()
+
+
+    def get_model(self):
+        return self.trained_model()
+
