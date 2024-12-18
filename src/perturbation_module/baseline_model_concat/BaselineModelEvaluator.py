@@ -2,7 +2,7 @@ import math
 import yaml
 import numpy as np
 import seaborn as sns
-import anndata as add
+import anndata as ad
 import pandas as pd
 import scanpy as sc
 from tqdm import tqdm
@@ -75,7 +75,18 @@ class BaselineModelEvaluator():
         self.sciplex_loader_test = DataLoader(sciplex_dataset_test, batch_size=self.config['train_params']['batch_size'],
                                          shuffle=True, num_workers=0)
 
+        # print("Loading control cell types ....")
+        # adata = ad.read_h5ad(self.config['dataset_params']['sciplex_adata_path'])
+        # self.adata_control = adata[adata.obs['product_name'] == "Vehicle"]
+
     def train(self):
+        control_embeddings = list()
+        treated_embeddings = list()
+        model_output = list()
+        compounds = list()
+        doses = list()
+        cell_types = list()
+
         print("Begin training ... ")
         self.model.train()  # Set the model to training mode
         losses = list()
@@ -107,18 +118,45 @@ class BaselineModelEvaluator():
 
                 losses.append(loss.item())
 
+                # decompose it into lists
+                control_emb = [x.cpu().numpy() for x in list(torch.unbind(control_emb, dim=0))]
+                # drug_emb = torch.unbind(drug_emb, dim=0)
+                # logdose = torch.unbind(logdose, dim=0)
+                treated_emb = [x.cpu().numpy() for x in list(torch.unbind(treated_emb, dim=0))]
+                output = [x.cpu().numpy() for x in list(torch.unbind(output, dim=0))]
+
+                compounds = meta['compound']
+                doses = meta['dose']
+                cell_types = meta['cell_type']
+
+                control_embeddings += control_emb
+                treated_embeddings += treated_emb
+                model_output += output
+                compounds += compounds
+                doses += doses
+                cell_types += cell_types
+
         self.losses_train = losses
         self.trained_model = self.model
+
+        self.train_results = pd.DataFrame({
+            "ctrl_emb": control_embeddings,
+            "pert_emb": treated_embeddings,
+            "pred_emb": model_output,
+            "compound": compounds,
+            "dose": doses,
+            "cell_type": cell_types,
+        })
 
         print("Training completed ...")
 
     def test(self):
-        self.control_embeddings = list()
-        self.treated_embeddings = list()
-        self.model_output = list()
-        self.compounds = list()
-        self.doses = list()
-        self.cell_types = list()
+        control_embeddings = list()
+        treated_embeddings = list()
+        model_output = list()
+        compounds = list()
+        doses = list()
+        cell_types = list()
 
 
         self.trained_model.eval()
@@ -145,20 +183,20 @@ class BaselineModelEvaluator():
                 doses = meta['dose']
                 cell_types = meta['cell_type']
 
-                self.control_embeddings += control_emb
-                self.treated_embeddings += treated_emb
-                self.model_output += output
-                self.compounds += compounds
-                self.doses += doses
-                self.cell_types += cell_types
+                control_embeddings += control_emb
+                treated_embeddings += treated_emb
+                model_output += output
+                compounds += compounds
+                doses += doses
+                cell_types += cell_types
 
         self.test_results = pd.DataFrame({
-            "ctrl_emb": self.control_embeddings,
-            "pert_emb": self.treated_embeddings,
-            "pred_emb": self.model_output,
-            "compound": self.compounds,
-            "dose": self.doses,
-            "cell_type": self.cell_types,
+            "ctrl_emb": control_embeddings,
+            "pert_emb": treated_embeddings,
+            "pred_emb": model_output,
+            "compound": compounds,
+            "dose": doses,
+            "cell_type": cell_types,
         })
 
     def plot_stats(self):
@@ -169,15 +207,44 @@ class BaselineModelEvaluator():
 
 
     def __plot_euclidean_distance(self):
+        """
+        Plot the euclidean distance between reference, perturbed and predicted centroids for unique
+        covariate combinations.
+        Also plot the proportion of predicted values that are closer to the perturbed compared to the reference
+        """
         dist_ctrl_pert = list()
         dist_ctrl_pred = list()
         dist_pert_pred = list()
 
-        for i, row in self.test_results.iterrows():
-            dist_ctrl_pert.append(euclidean(row['ctrl_emb'], row['pert_emb']))
-            dist_ctrl_pred.append(euclidean(row['ctrl_emb'], row['pred_emb']))
-            dist_pert_pred.append(euclidean(row['pert_emb'], row['pred_emb']))
+        no_closer_to_reference = 0
+        no_closer_to_perturbed = 0
 
+        for cell_type in self.test_results['cell_type'].unique():
+            for compound in self.test_results['compound'].unique():
+                for dose in self.test_results['dose'].unique():
+
+                    df_subset = self.test_results[self.test_results['cell_type'] == cell_type &
+                                                  elf.test_results['compound'] == compound &
+                                                  self.test_results['dose'] == dose]
+
+                    centroid_reference =  np.array(df_subset['ctrl_emb'].tolist()).mean(axis=0)
+                    centroid_perturbed = np.array(df_subset['pert_emb'].tolist()).mean(axis=0)
+                    centroid_predicted = np.array(df_subset['pred_emb'].tolist()).mean(axis=0)
+
+                    dist_ctrl_pert.append(euclidean(centroid_reference, centroid_perturbed))
+                    dist_ctrl_pred.append(euclidean(centroid_reference, centroid_predicted))
+                    dist_pert_pred.append(euclidean(centroid_perturbed, centroid_predicted))
+
+                    if euclidean(centroid_reference, centroid_predicted) < euclidean(centroid_perturbed, centroid_predicted):
+                        no_closer_to_reference += 1
+                    else:
+                        no_closer_to_perturbed += 1
+
+        # Compute the proportion
+        total_comparisons = no_closer_to_reference + no_closer_to_perturbed
+        proportion_perturbed = no_closer_to_perturbed / total_comparisons
+
+        # Create the distance data for the boxplot
         data = pd.DataFrame({
             "Value": dist_ctrl_pert + dist_ctrl_pred + dist_pert_pred,
             "Category": (
@@ -187,14 +254,28 @@ class BaselineModelEvaluator():
             )
         })
 
-        # Create the boxplot
-        plt.figure(figsize=(8, 6))
-        sns.boxplot(x="Category", y="Value", data=data, palette="Set2")
+        # Create the plot
+        fig, ax1 = plt.subplots(figsize=(10, 6))
 
-        # Add titles and labels
-        plt.title("Distribution of Distances", fontsize=16)
-        plt.xlabel("Samples", fontsize=14)
-        plt.ylabel("Euclidean Distance between embeddings", fontsize=14)
+        # Boxplot for distances
+        sns.boxplot(x="Category", y="Value", data=data, palette="Set2", ax=ax1)
+        ax1.set_title("Distribution of Distances and Proportion of Predictions", fontsize=16)
+        ax1.set_xlabel("Samples", fontsize=14)
+        ax1.set_ylabel("Euclidean Distance", fontsize=14)
+
+        # Add secondary y-axis for the proportion
+        ax2 = ax1.twinx()
+        ax2.bar(
+            ["Proportion"],
+            [proportion_perturbed],
+            color="orange",
+            alpha=0.6,
+            width=0.3,
+            align="center"
+        )
+        ax2.set_ylabel("Proportion Closer to Perturbed", fontsize=14)
+        ax2.set_ylim(0, 1)
+
         plt.show()
 
     def __plot_cosine_similarity(self):
