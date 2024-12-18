@@ -219,8 +219,8 @@ class BaselineModelEvaluator():
         no_closer_to_reference = 0
         no_closer_to_perturbed = 0
 
-        for cell_type in self.test_results['cell_type'].unique():
-            for compound in self.test_results['compound'].unique():
+        for compound in tqdm(list(self.test_results['compound'].unique())):
+            for cell_type in self.test_results['cell_type'].unique():
                 for dose in self.test_results['dose'].unique():
 
                     df_subset = self.test_results[(self.test_results['cell_type'] == cell_type) &
