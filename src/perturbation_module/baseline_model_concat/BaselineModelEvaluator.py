@@ -224,7 +224,7 @@ class BaselineModelEvaluator():
                 for dose in self.test_results['dose'].unique():
 
                     df_subset = self.test_results[self.test_results['cell_type'] == cell_type &
-                                                  elf.test_results['compound'] == compound &
+                                                  self.test_results['compound'] == compound &
                                                   self.test_results['dose'] == dose]
 
                     centroid_reference =  np.array(df_subset['ctrl_emb'].tolist()).mean(axis=0)
