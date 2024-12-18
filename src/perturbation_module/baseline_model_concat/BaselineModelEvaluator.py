@@ -119,11 +119,11 @@ class BaselineModelEvaluator():
                 losses.append(loss.item())
 
                 # decompose it into lists
-                control_emb = [x.detach().numpy() for x in list(torch.unbind(control_emb, dim=0))]
+                control_emb = [x.item() for x in list(torch.unbind(control_emb, dim=0))]
                 # drug_emb = torch.unbind(drug_emb, dim=0)
                 # logdose = torch.unbind(logdose, dim=0)
-                treated_emb = [x.detach().numpy() for x in list(torch.unbind(treated_emb, dim=0))]
-                output = [x.detach().numpy() for x in list(torch.unbind(output, dim=0))]
+                treated_emb = [x.item() for x in list(torch.unbind(treated_emb, dim=0))]
+                output = [x.item() for x in list(torch.unbind(output, dim=0))]
 
                 compounds = meta['compound']
                 doses = meta['dose']
