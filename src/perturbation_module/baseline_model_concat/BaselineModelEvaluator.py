@@ -63,7 +63,7 @@ class BaselineModelEvaluator():
         with open(self.config['dataset_params']['sciplex_drugs_test'], "r") as f:
             drugs_validation = [line.strip() for line in f]
 
-        print("Loading train dataset ...")
+        print("Loading sciplex train dataset ...")
         sciplex_dataset_train = SciplexDatasetBaseline(self.config['dataset_params']['sciplex_adata_path'],
                                                       drugs_train)
         self.sciplex_loader_train = DataLoader(sciplex_dataset_train, batch_size=self.config['train_params']['batch_size'],
@@ -83,9 +83,9 @@ class BaselineModelEvaluator():
         control_embeddings = list()
         treated_embeddings = list()
         model_output = list()
-        compounds = list()
-        doses = list()
-        cell_types = list()
+        compounds_list = list()
+        doses_list = list()
+        cell_types_list = list()
 
         print("Begin training ... ")
         self.model.train()  # Set the model to training mode
@@ -132,9 +132,9 @@ class BaselineModelEvaluator():
                 control_embeddings += control_emb
                 treated_embeddings += treated_emb
                 model_output += output
-                compounds += compounds
-                doses += doses
-                cell_types += cell_types
+                compounds_list += compounds
+                doses_list += doses
+                cell_types_list += cell_types
 
         self.losses_train = losses
         self.trained_model = self.model
@@ -143,9 +143,9 @@ class BaselineModelEvaluator():
             "ctrl_emb": control_embeddings,
             "pert_emb": treated_embeddings,
             "pred_emb": model_output,
-            "compound": compounds,
-            "dose": doses,
-            "cell_type": cell_types,
+            "compound": compounds_list,
+            "dose": doses_list,
+            "cell_type": cell_types_list,
         })
 
         print("Training completed ...")
@@ -154,9 +154,9 @@ class BaselineModelEvaluator():
         control_embeddings = list()
         treated_embeddings = list()
         model_output = list()
-        compounds = list()
-        doses = list()
-        cell_types = list()
+        compounds_list = list()
+        doses_list = list()
+        cell_types_list = list()
 
 
         self.trained_model.eval()
@@ -186,17 +186,17 @@ class BaselineModelEvaluator():
                 control_embeddings += control_emb
                 treated_embeddings += treated_emb
                 model_output += output
-                compounds += compounds
-                doses += doses
-                cell_types += cell_types
+                compounds_list += compounds
+                doses_list += doses
+                cell_types_list += cell_types
 
         self.test_results = pd.DataFrame({
             "ctrl_emb": control_embeddings,
             "pert_emb": treated_embeddings,
             "pred_emb": model_output,
-            "compound": compounds,
-            "dose": doses,
-            "cell_type": cell_types,
+            "compound": compounds_list,
+            "dose": doses_list,
+            "cell_type": cell_types_list,
         })
 
     def plot_stats(self):
