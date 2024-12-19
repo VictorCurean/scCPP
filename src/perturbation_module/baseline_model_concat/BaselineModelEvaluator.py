@@ -131,24 +131,26 @@ class BaselineModelEvaluator():
 
                 output = self.trained_model(input)
 
-                # Decompose it into lists
-                control_emb = [x.cpu().numpy() for x in list(torch.unbind(control_emb, dim=0))]
-                treated_emb = [x.cpu().numpy() for x in list(torch.unbind(treated_emb, dim=0))]
-                output = [x.cpu().numpy() for x in list(torch.unbind(output, dim=0))]
+                # Decompose tensors into lists for DataFrame compatibility
+                control_emb = [x.cpu().numpy() for x in torch.unbind(control_emb, dim=0)]
+                treated_emb = [x.cpu().numpy() for x in torch.unbind(treated_emb, dim=0)]
+                output = [x.cpu().numpy() for x in torch.unbind(output, dim=0)]
 
+                # Meta information
                 compounds = meta['compound']
                 doses = meta['dose']
                 doses = [d.item() for d in doses]
                 cell_types = meta['cell_type']
 
-                control_embeddings += control_emb
-                treated_embeddings += treated_emb
-                model_output += output
-                compounds_list += compounds
-                doses_list += doses
-                cell_types_list += cell_types
+                # Append results to lists
+                control_embeddings.extend(control_emb)
+                treated_embeddings.extend(treated_emb)
+                model_output.extend(output)
+                compounds_list.extend(compounds)
+                doses_list.extend(doses)
+                cell_types_list.extend(cell_types)
 
-        # Save the results to a DataFrame
+        # Save results into a DataFrame
         self.test_results = pd.DataFrame({
             "ctrl_emb": control_embeddings,
             "pert_emb": treated_embeddings,
@@ -158,27 +160,35 @@ class BaselineModelEvaluator():
             "cell_type": cell_types_list,
         })
 
-        print("Testing completed.")
+        print("Testing completed. Results stored in 'self.test_results'.")
 
-        # Save to file if a path is provided
+        # Save to file if save_path is provided
         if save_path:
             self.save_results(save_path)
 
     def save_results(self, save_path):
         """
-        Save the test results to a specified file path.
-
-        Args:
-            save_path (str): File path to save the results. Supported formats: .csv, .pkl
+        Saves test results to a file. Supports multiple formats (CSV, JSON, Pickle).
         """
-        if save_path.endswith('.csv'):
-            self.test_results.to_csv(save_path, index=False)
-            print(f"Test results saved as CSV to {save_path}")
-        elif save_path.endswith('.pkl'):
+        file_extension = save_path.split('.')[-1]
+
+        if file_extension == 'csv':
+            # Convert embeddings to lists for CSV compatibility
+            df_to_save = self.test_results.copy()
+            df_to_save['ctrl_emb'] = df_to_save['ctrl_emb'].apply(list)
+            df_to_save['pert_emb'] = df_to_save['pert_emb'].apply(list)
+            df_to_save['pred_emb'] = df_to_save['pred_emb'].apply(list)
+            df_to_save.to_csv(save_path, index=False)
+        elif file_extension == 'json':
+            # Save to JSON
+            self.test_results.to_json(save_path, orient='records')
+        elif file_extension == 'pkl':
+            # Save to Pickle for preserving object types like tensors
             self.test_results.to_pickle(save_path)
-            print(f"Test results saved as Pickle to {save_path}")
         else:
-            raise ValueError("Unsupported file format. Use '.csv' or '.pkl'.")
+            raise ValueError(f"Unsupported file format: {file_extension}")
+
+        print(f"Results saved to {save_path}.")
 
     def plot_stats(self):
         self.__plot_euclidean_distance()
