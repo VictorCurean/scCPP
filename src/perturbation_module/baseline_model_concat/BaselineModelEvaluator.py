@@ -80,13 +80,6 @@ class BaselineModelEvaluator():
         # self.adata_control = adata[adata.obs['product_name'] == "Vehicle"]
 
     def train(self):
-        control_embeddings = list()
-        treated_embeddings = list()
-        model_output = list()
-        compounds_list = list()
-        doses_list = list()
-        cell_types_list = list()
-
         print("Begin training ... ")
         self.model.train()  # Set the model to training mode
         losses = list()
@@ -108,9 +101,6 @@ class BaselineModelEvaluator():
                 output = self.model(input)
 
                 loss = self.criterion(output, treated_emb)
-                #loss = euclidean(output.cpu(), treated_emb.cpu())
-
-
 
                 loss.backward()
 
@@ -118,46 +108,18 @@ class BaselineModelEvaluator():
 
                 losses.append(loss.item())
 
-                # decompose it into lists
-                control_emb = [x.detach().cpu().numpy() for x in list(torch.unbind(control_emb, dim=0))]
-                # drug_emb = torch.unbind(drug_emb, dim=0)
-                # logdose = torch.unbind(logdose, dim=0)
-                treated_emb = [x.detach().cpu().numpy() for x in list(torch.unbind(treated_emb, dim=0))]
-                output = [x.detach().cpu().numpy() for x in list(torch.unbind(output, dim=0))]
-
-                compounds = meta['compound']
-                doses = meta['dose']
-                cell_types = meta['cell_type']
-
-                control_embeddings += control_emb
-                treated_embeddings += treated_emb
-                model_output += output
-                compounds_list += compounds
-                doses_list += doses
-                cell_types_list += cell_types
-
         self.losses_train = losses
         self.trained_model = self.model
 
-        self.train_results = pd.DataFrame({
-            "ctrl_emb": control_embeddings,
-            "pert_emb": treated_embeddings,
-            "pred_emb": model_output,
-            "compound": compounds_list,
-            "dose": doses_list,
-            "cell_type": cell_types_list,
-        })
-
         print("Training completed ...")
 
-    def test(self):
-        control_embeddings = list()
-        treated_embeddings = list()
-        model_output = list()
-        compounds_list = list()
-        doses_list = list()
-        cell_types_list = list()
-
+    def test(self, save_path=None):
+        control_embeddings = []
+        treated_embeddings = []
+        model_output = []
+        compounds_list = []
+        doses_list = []
+        cell_types_list = []
 
         self.trained_model.eval()
 
@@ -169,13 +131,8 @@ class BaselineModelEvaluator():
 
                 output = self.trained_model(input)
 
-
-                loss = self.criterion(output, treated_emb)
-
-                #decompose it into lists
+                # Decompose it into lists
                 control_emb = [x.cpu().numpy() for x in list(torch.unbind(control_emb, dim=0))]
-                #drug_emb = torch.unbind(drug_emb, dim=0)
-                #logdose = torch.unbind(logdose, dim=0)
                 treated_emb = [x.cpu().numpy() for x in list(torch.unbind(treated_emb, dim=0))]
                 output = [x.cpu().numpy() for x in list(torch.unbind(output, dim=0))]
 
@@ -190,6 +147,7 @@ class BaselineModelEvaluator():
                 doses_list += doses
                 cell_types_list += cell_types
 
+        # Save the results to a DataFrame
         self.test_results = pd.DataFrame({
             "ctrl_emb": control_embeddings,
             "pert_emb": treated_embeddings,
@@ -198,6 +156,28 @@ class BaselineModelEvaluator():
             "dose": doses_list,
             "cell_type": cell_types_list,
         })
+
+        print("Testing completed.")
+
+        # Save to file if a path is provided
+        if save_path:
+            self.save_results(save_path)
+
+    def save_results(self, save_path):
+        """
+        Save the test results to a specified file path.
+
+        Args:
+            save_path (str): File path to save the results. Supported formats: .csv, .pkl
+        """
+        if save_path.endswith('.csv'):
+            self.test_results.to_csv(save_path, index=False)
+            print(f"Test results saved as CSV to {save_path}")
+        elif save_path.endswith('.pkl'):
+            self.test_results.to_pickle(save_path)
+            print(f"Test results saved as Pickle to {save_path}")
+        else:
+            raise ValueError("Unsupported file format. Use '.csv' or '.pkl'.")
 
     def plot_stats(self):
         self.__plot_euclidean_distance()
@@ -361,5 +341,5 @@ class BaselineModelEvaluator():
 
 
     def get_model(self):
-        return self.trained_model()
+        return self.trained_model
 
