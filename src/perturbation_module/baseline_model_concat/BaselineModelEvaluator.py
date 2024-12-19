@@ -138,6 +138,7 @@ class BaselineModelEvaluator():
 
                 compounds = meta['compound']
                 doses = meta['dose']
+                doses = [d.item() for d in doses]
                 cell_types = meta['cell_type']
 
                 control_embeddings += control_emb
