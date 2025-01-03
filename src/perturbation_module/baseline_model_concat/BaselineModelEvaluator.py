@@ -12,12 +12,7 @@ import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import euclidean
-
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, confusion_matrix, precision_recall_curve, auc, precision_score, recall_score
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics.pairwise import cosine_similarity
+from scipy.stats import spearmanr
 
 from model import ConditionalFeedForwardNN
 from dataset import SciplexDatasetBaseline
@@ -75,9 +70,6 @@ class BaselineModelEvaluator():
         self.sciplex_loader_test = DataLoader(sciplex_dataset_test, batch_size=self.config['train_params']['batch_size'],
                                          shuffle=True, num_workers=0)
 
-        # print("Loading control cell types ....")
-        # adata = ad.read_h5ad(self.config['dataset_params']['sciplex_adata_path'])
-        # self.adata_control = adata[adata.obs['product_name'] == "Vehicle"]
 
     def train(self):
         print("Begin training ... ")
@@ -190,28 +182,25 @@ class BaselineModelEvaluator():
 
         print(f"Results saved to {save_path}.")
 
-    def plot_stats(self):
-        self.__plot_euclidean_distance()
-        self.__plot_cosine_similarity()
-        self.__plot_r_squared()
-        self.__plot_training_loss()
+    def get_stats(self):
+        pcp_results = self.get_PCP()
+        pr_results_predicted, pr_results_perturbed = self.get_PR()
+        loss_results = self.get_validation_loss()
 
 
-    def __plot_euclidean_distance(self):
+    def get_PCP(self, dist_func):
         """
-        Plot the euclidean distance between reference, perturbed and predicted centroids for unique
-        covariate combinations.
-        Also plot the proportion of predicted values that are closer to the perturbed compared to the reference
+        Get PCP (procentage closer to perturb) based on a given dist function.
+        The dist function takes as input two centroids
         """
-        dist_ctrl_pert = list()
-        dist_ctrl_pred = list()
-        dist_pert_pred = list()
 
-        no_closer_to_reference = 0
-        no_closer_to_perturbed = 0
+        results = {"A549": None, "K562": None, "MCF7": None}
 
-        for compound in tqdm(list(self.test_results['compound'].unique())):
-            for cell_type in self.test_results['cell_type'].unique():
+        for cell_type in self.test_results['cell_type'].unique():
+            no_closer_to_reference = 0
+            no_closer_to_perturbed = 0
+
+            for compound in tqdm(list(self.test_results['compound'].unique())):
                 for dose in self.test_results['dose'].unique():
 
                     df_subset = self.test_results[(self.test_results['cell_type'] == cell_type) &
@@ -222,124 +211,98 @@ class BaselineModelEvaluator():
                     centroid_perturbed = np.array(df_subset['pert_emb'].tolist()).mean(axis=0)
                     centroid_predicted = np.array(df_subset['pred_emb'].tolist()).mean(axis=0)
 
-                    dist_ctrl_pert.append(euclidean(centroid_reference, centroid_perturbed))
-                    dist_ctrl_pred.append(euclidean(centroid_reference, centroid_predicted))
-                    dist_pert_pred.append(euclidean(centroid_perturbed, centroid_predicted))
-
-                    if euclidean(centroid_reference, centroid_predicted) < euclidean(centroid_perturbed, centroid_predicted):
+                    if dist_func(centroid_reference, centroid_predicted) < dist_func(centroid_perturbed, centroid_predicted):
                         no_closer_to_reference += 1
                     else:
                         no_closer_to_perturbed += 1
 
-        # Compute the proportion
-        total_comparisons = no_closer_to_reference + no_closer_to_perturbed
-        proportion_perturbed = no_closer_to_perturbed / total_comparisons
 
-        # Create the distance data for the boxplot
-        data = pd.DataFrame({
-            "Value": dist_ctrl_pert + dist_ctrl_pred + dist_pert_pred,
-            "Category": (
-                    ["ctrl_pert"] * len(dist_ctrl_pert) +
-                    ["ctrl_pred"] * len(dist_ctrl_pred) +
-                    ["pert_pred"] * len(dist_pert_pred)
-            )
-        })
 
-        # Create the plot
-        fig, ax1 = plt.subplots(figsize=(10, 6))
+            # Compute the proportion
+            total_comparisons = no_closer_to_reference + no_closer_to_perturbed
+            pcp = no_closer_to_perturbed / total_comparisons
 
-        # Boxplot for distances
-        sns.boxplot(x="Category", y="Value", data=data, palette="Set2", ax=ax1)
-        ax1.set_title("Distribution of Distances and Proportion of Predictions", fontsize=16)
-        ax1.set_xlabel("Samples", fontsize=14)
-        ax1.set_ylabel("Euclidean Distance", fontsize=14)
+            results[cell_type] = pcp
 
-        # Add secondary y-axis for the proportion
-        ax2 = ax1.twinx()
-        ax2.bar(
-            ["Proportion"],
-            [proportion_perturbed],
-            color="orange",
-            alpha=0.6,
-            width=0.3,
-            align="center"
-        )
-        ax2.set_ylabel("Proportion Closer to Perturbed", fontsize=14)
-        ax2.set_ylim(0, 1)
 
-        plt.show()
 
-    def __plot_cosine_similarity(self):
-        sim_ctrl_pert = list()
-        sim_ctrl_pred = list()
-        sim_pert_pred = list()
+        return results
 
-        for i, row in self.test_results.iterrows():
-            # Calculate cosine similarity
-            sim_ctrl_pert.append(cosine_similarity([row['ctrl_emb']], [row['pert_emb']])[0, 0])
-            sim_ctrl_pred.append(cosine_similarity([row['ctrl_emb']], [row['pred_emb']])[0, 0])
-            sim_pert_pred.append(cosine_similarity([row['pert_emb']], [row['pred_emb']])[0, 0])
+    def get_PR(self, dist_func):
+        """
+        Get PR (prediction robustness), which measures the spearman correlation between dose and distance to control
+        """
 
-        data = pd.DataFrame({
-            "Value": sim_ctrl_pert + sim_ctrl_pred + sim_pert_pred,
-            "Category": (
-                    ["ctrl_pert"] * len(sim_ctrl_pert) +
-                    ["ctrl_pred"] * len(sim_ctrl_pred) +
-                    ["pert_pred"] * len(sim_pert_pred)
-            )
-        })
+        results_perturbed = {"A549": None, "K562": None, "MCF7": None}
+        results_predicted = {"A549": None, "K562": None, "MCF7": None}
 
-        # Create the boxplot
-        plt.figure(figsize=(8, 6))
-        sns.boxplot(x="Category", y="Value", data=data, palette="Set2")
+        for cell_type in self.test_results['cell_type'].unique():
+            correlations_perturbed = list()
+            correlation_predicted = list()
 
-        # Add titles and labels
-        plt.title("Distribution of Cosine Similarity", fontsize=16)
-        plt.xlabel("Samples", fontsize=14)
-        plt.ylabel("Cosine Similarity between embeddings", fontsize=14)
-        plt.ylim(0, 1)  # Cosine similarity values are between 0 and 1
-        plt.show()
+            for compound in tqdm(list(self.test_results['compound'].unique())):
 
-    def __plot_r_squared(self):
-        r2_ctrl_pert = list()
-        r2_ctrl_pred = list()
-        r2_pert_pred = list()
 
-        for i, row in self.test_results.iterrows():
-            # Compute R-squared for each pair
-            r2_ctrl_pert.append(self.__compute_r_squared(row['ctrl_emb'], row['pert_emb']))
-            r2_ctrl_pred.append(self.__compute_r_squared(row['ctrl_emb'], row['pred_emb']))
-            r2_pert_pred.append(self.__compute_r_squared(row['pert_emb'], row['pred_emb']))
+                df_subset = self.test_results[(self.test_results['cell_type'] == cell_type) &
+                                              (self.test_results['compound'] == compound)]
 
-        data = pd.DataFrame({
-            "Value": r2_ctrl_pert + r2_ctrl_pred + r2_pert_pred,
-            "Category": (
-                    ["ctrl_pert"] * len(r2_ctrl_pert) +
-                    ["ctrl_pred"] * len(r2_ctrl_pred) +
-                    ["pert_pred"] * len(r2_pert_pred)
-            )
-        })
 
-        # Create the boxplot
-        plt.figure(figsize=(8, 6))
-        sns.boxplot(x="Category", y="Value", data=data, palette="Set2")
 
-        # Add titles and labels
-        plt.title("Distribution of R-squared", fontsize=16)
-        plt.xlabel("Samples", fontsize=14)
-        plt.ylabel("R-squared between embeddings", fontsize=14)
-        plt.ylim(-1, 1)  # R-squared can range from -1 to 1
-        plt.show()
+                centroid_reference = np.array(df_subset['ctrl_emb'].tolist()).mean(axis=0)
 
-    def __compute_r_squared(self, y_true, y_pred):
-        """Helper function to calculate R-squared."""
-        y_true = np.array(y_true)
-        y_pred = np.array(y_pred)
+                doses = sorted(list(df_subset['doses'].unique()))
+                perturbed_dist_to_reference = list()
+                predicted_dist_to_reference = list()
 
-        ss_res = np.sum((y_true - y_pred) ** 2)
-        ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+                for dose in doses:
+                    df_dose = df_subset[df_subset['dose'] == dose]
 
-        return 1 - (ss_res / ss_tot) if ss_tot > 0 else float('nan')
+                    centroid_perturbed = np.array(df_dose['pert_emb'].tolist()).mean(axis=0)
+                    centroid_predicted = np.array(df_dose['pred_emb'].tolist()).mean(axis=0)
+
+                    dist_reference_perturbed = dist_func(centroid_reference, centroid_perturbed)
+                    dist_reference_predicted = dist_func(centroid_reference, centroid_predicted)
+
+                    perturbed_dist_to_reference.append(dist_reference_perturbed)
+                    predicted_dist_to_reference.append(dist_reference_predicted)
+
+                corr_perturbed, _ = spearmanr(doses, perturbed_dist_to_reference)
+                corr_predicted, _ = spermanr(doses, predicted_dist_to_reference)
+
+                correlations_perturbed.append(corr_perturbed)
+                correlation_predicted.append(corr_predicted)
+
+            corr_perturbed_mean = np.mean(correlations_perturbed)
+            corr_predicted_mean = np.mean(correlation_predicted)
+
+            results_perturbed[cell_type] = corr_perturbed_mean
+            results_predicted[cell_type] = corr_predicted_mean
+
+        return results_perturbed, results_predicted
+
+    def get_validation_loss(self, dist_func):
+        """
+        Get average distance between reference and predicted for each cell type
+        """
+
+        results = {"A549": None, "K562": None, "MCF7": None}
+
+        for cell_type in self.test_results['cell_type'].unique():
+            losses = list()
+
+            df_subset = self.test_results[self.test_results['cell_type'] == cell_type]
+
+            for row in df_subset.iterrows():
+
+                losses.append(dist_func(row['pert_emb'], row['pred_emb']))
+
+
+            avg_loss = np.mean(losses)
+
+            results[cell_type] = avg_loss
+
+        return results
+
 
     def __plot_training_loss(self):
         plt.figure(figsize=(8, 6))
