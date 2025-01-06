@@ -14,12 +14,11 @@ import matplotlib.pyplot as plt
 from scipy.spatial.distance import euclidean
 from scipy.stats import spearmanr
 
-from model import ConditionalFeedForwardNN
+from model import FiLMResidualModel
 from dataset import SciplexDatasetBaseline
-from dataset_zhao import ZhaoDatasetBaseline
 
 
-class BaselineModelEvaluator():
+class FiLMModelEvaluator():
 
     def __init__(self, config_path):
         # load config file
@@ -31,7 +30,6 @@ class BaselineModelEvaluator():
         #read data
         self.__read_data()
 
-
     def __read_config(self, config_path):
         with open(config_path, 'r') as file:
             try:
@@ -42,8 +40,10 @@ class BaselineModelEvaluator():
 
     def __prepare_model(self):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model = ConditionalFeedForwardNN(self.config)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.config['train_params']['lr'])
+        self.model = FiLMResidualModel(self.config)
+        self.optimizer = optim.Adam(self.model.parameters(),
+                                    lr=self.config['train_params']['lr'],
+                                    weight_decay=self.config['train_params']['weight_decay'])
         #self.criterion = nn.MSELoss()
         self.criterion = nn.L1Loss()
 
@@ -71,37 +71,43 @@ class BaselineModelEvaluator():
         self.sciplex_loader_test = DataLoader(sciplex_dataset_test, batch_size=self.config['train_params']['batch_size'],
                                          shuffle=True, num_workers=0)
 
-
     def train(self):
-        print("Begin training ... ")
+        print("Begin training ...")
         self.model.train()  # Set the model to training mode
-        losses = list()
+        losses = []
 
         num_epochs = self.config['train_params']['num_epochs']
+        device = self.device  # Target device (e.g., 'cuda' or 'cpu')
 
         iteration = 0
         every_n = 10
 
         for epoch in range(num_epochs):
+            print(f"Epoch {epoch + 1}/{num_epochs}")
 
             for control_emb, drug_emb, logdose, treated_emb, meta in self.sciplex_loader_train:
-
-                input = torch.cat([control_emb, drug_emb, logdose], dim=-1)
                 # Move tensors to the specified device
+                control_emb = control_emb.to(device)
+                drug_emb = drug_emb.to(device)
+                logdose = logdose.to(device)
+                treated_emb = treated_emb.to(device)
 
-                input = input.to(self.device)
-                treated_emb = treated_emb.to(self.device)
-
+                # Zero the gradients
                 self.optimizer.zero_grad()
 
-                output = self.model(input)
+                # Forward pass through the model
+                output = self.model(control_emb, drug_emb, logdose)
 
+                # Compute the loss
                 loss = self.criterion(output, treated_emb)
 
+                # Backpropagation
                 loss.backward()
 
+                # Update model parameters
                 self.optimizer.step()
 
+                # Track the loss
                 losses.append(loss.item())
 
                 iteration += 1
@@ -109,15 +115,15 @@ class BaselineModelEvaluator():
                 if iteration % every_n == 0:
                     print("Iteration:", iteration, "Loss:", loss.item())
 
-
-
-
         self.losses_train = losses
         self.trained_model = self.model
 
-        print("Training completed ...")
+        print("Training completed.")
 
     def test(self, save_path=None):
+        """
+        Test the FiLMResidualModel and collect results.
+        """
         control_embeddings = []
         treated_embeddings = []
         model_output = []
@@ -125,20 +131,23 @@ class BaselineModelEvaluator():
         doses_list = []
         cell_types_list = []
 
-        self.trained_model.eval()
+        self.trained_model.eval()  # Set the model to evaluation mode
 
-        with torch.no_grad():
+        with torch.no_grad():  # Disable gradient computation
             for control_emb, drug_emb, logdose, treated_emb, meta in tqdm(self.sciplex_loader_test):
-                input = torch.cat([control_emb, drug_emb, logdose], dim=-1)
-                input = input.to(self.device)
+                # Move tensors to the specified device
+                control_emb = control_emb.to(self.device)
+                drug_emb = drug_emb.to(self.device)
+                logdose = logdose.to(self.device)
                 treated_emb = treated_emb.to(self.device)
 
-                output = self.trained_model(input)
+                # Forward pass through the model
+                output = self.trained_model(control_emb, drug_emb, logdose)
 
-                # Decompose tensors into lists for DataFrame compatibility
-                control_emb = [x.cpu().numpy() for x in torch.unbind(control_emb, dim=0)]
-                treated_emb = [x.cpu().numpy() for x in torch.unbind(treated_emb, dim=0)]
-                output = [x.cpu().numpy() for x in torch.unbind(output, dim=0)]
+                # Convert tensors to lists of NumPy arrays for DataFrame compatibility
+                control_emb_list = [x.cpu().numpy() for x in torch.unbind(control_emb, dim=0)]
+                treated_emb_list = [x.cpu().numpy() for x in torch.unbind(treated_emb, dim=0)]
+                output_list = [x.cpu().numpy() for x in torch.unbind(output, dim=0)]
 
                 # Meta information
                 compounds = meta['compound']
@@ -147,9 +156,9 @@ class BaselineModelEvaluator():
                 cell_types = meta['cell_type']
 
                 # Append results to lists
-                control_embeddings.extend(control_emb)
-                treated_embeddings.extend(treated_emb)
-                model_output.extend(output)
+                control_embeddings.extend(control_emb_list)
+                treated_embeddings.extend(treated_emb_list)
+                model_output.extend(output_list)
                 compounds_list.extend(compounds)
                 doses_list.extend(doses)
                 cell_types_list.extend(cell_types)
@@ -198,11 +207,13 @@ class BaselineModelEvaluator():
         pcp_results = self.get_PCP(dist_func)
         pr_results_perturbed, pr_results_predicted = self.get_PR(dist_func)
         loss_results = self.get_validation_loss(dist_func)
+        null_model_loss_results = self.get_null_model_loss(dist_func)
 
         print("Test PCP:", pcp_results)
         print("Test PR perturbed:", pr_results_perturbed)
         print("Test PR predicted:", pr_results_predicted)
         print("Test Loss:", loss_results)
+        print("Null Model Loss:", null_model_loss_results)
 
 
     def get_PCP(self, dist_func):
@@ -319,6 +330,29 @@ class BaselineModelEvaluator():
         return results
 
 
+    def get_null_model_loss(self, dist_func):
+        """
+        Get null model loss for each cell type. In this case, a null model predicts no change so the loss becomes
+        the distance function between paired control and treated cells
+        """
+
+        results = {"A549": None, "K562": None, "MCF7": None}
+
+        for cell_type in self.test_results['cell_type'].unique():
+            losses = list()
+
+            df_subset = self.test_results[self.test_results['cell_type'] == cell_type]
+
+            for i, row in df_subset.iterrows():
+                losses.append(dist_func(np.array(row['ctrl_emb']), np.array(row['pert_emb'])))
+
+            avg_loss = np.mean(losses)
+
+            results[cell_type] = avg_loss
+
+        return results
+
+
     def plot_training_loss(self):
         plt.figure(figsize=(8, 6))
         index_losses = list(range(len(self.losses_train)))
@@ -331,4 +365,3 @@ class BaselineModelEvaluator():
 
     def get_model(self):
         return self.trained_model
-

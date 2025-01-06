@@ -92,10 +92,11 @@ class FiLMResidualModel(nn.Module):
         super(FiLMResidualModel, self).__init__()
         control_dim = config['model_params']['control_dim']
         drug_dim = config['model_params']['drug_emb_dim']
-        modulator_hidden_dims = config['model_params']['modulator_hidden_dims']
+        modulator_hidden_dims = config['model_params']['hidden_dims_modulator']
         block_hidden_dim = config['model_params']['block_hidden_dim']
         num_blocks = config['model_params']['num_blocks']
         output_dim = config['model_params']['output_dim']
+        dropout_rate = config['model_params']['dropout_rate']
 
         # Residual blocks with FiLM modulation
         self.blocks = nn.ModuleList([
@@ -125,26 +126,26 @@ class FiLMResidualModel(nn.Module):
         return treated_emb
 
 
-# Example configuration
-if __name__ == "__main__":
-    config = {
-        'model_params': {
-            'control_dim': 1280,
-            'drug_emb_dim': 256,
-            'modulator_hidden_dims': [512, 256],
-            'block_hidden_dim': 640,
-            'num_blocks': 4,
-            'output_dim': 1280
-        }
-    }
-    # Instantiate the model
-    model = FiLMResidualModel(config)
-
-    # Example inputs
-    control_emb = torch.randn(16, 1280)  # Batch size of 16, control dimension 1280
-    drug_emb = torch.randn(16, 256)  # Batch size of 16, drug embedding dimension 256
-    logdose = torch.randn(16, 1)  # Batch size of 16, log dose dimension 1
-
-    # Forward pass
-    output = model(control_emb, drug_emb, logdose)
-    print(output.shape)  # Expected: (16, 1280)
+# # Example configuration
+# if __name__ == "__main__":
+#     config = {
+#         'model_params': {
+#             'control_dim': 1280,
+#             'drug_emb_dim': 256,
+#             'modulator_hidden_dims': [512, 256],
+#             'block_hidden_dim': 640,
+#             'num_blocks': 4,
+#             'output_dim': 1280
+#         }
+#     }
+#     # Instantiate the model
+#     model = FiLMResidualModel(config)
+#
+#     # Example inputs
+#     control_emb = torch.randn(16, 1280)  # Batch size of 16, control dimension 1280
+#     drug_emb = torch.randn(16, 256)  # Batch size of 16, drug embedding dimension 256
+#     logdose = torch.randn(16, 1)  # Batch size of 16, log dose dimension 1
+#
+#     # Forward pass
+#     output = model(control_emb, drug_emb, logdose)
+#     print(output.shape)  # Expected: (16, 1280)

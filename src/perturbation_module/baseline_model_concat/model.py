@@ -15,6 +15,7 @@ class ConditionalFeedForwardNN(nn.Module):
 
         for i, hidden_dim in enumerate(hidden_dims):
             layers.append(nn.Linear(input_dim if i == 0 else hidden_dims[i - 1], hidden_dim))
+            layers.append(nn.BatchNorm1d(hidden_dim))
             layers.append(nn.ReLU())
             input_dim = hidden_dim  # Update input_dim for next layer
 
