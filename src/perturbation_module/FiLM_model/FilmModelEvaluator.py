@@ -45,8 +45,8 @@ class FiLMModelEvaluator():
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr=self.config['train_params']['lr'],
                                     weight_decay=self.config['train_params']['weight_decay'])
-        #self.criterion = nn.MSELoss()
-        self.criterion = ControlDivergenceLoss(alpha=0.1)
+        self.criterion = nn.MSELoss()
+        #self.criterion = ControlDivergenceLoss(alpha=0.1)
 
         self.model = self.model.to(self.device)
 
@@ -100,7 +100,7 @@ class FiLMModelEvaluator():
                 output = self.model(control_emb, drug_emb, logdose)
 
                 # Compute the loss
-                loss = self.criterion(output, treated_emb, control_emb)
+                loss = self.criterion(output, treated_emb)
 
                 # Backpropagation
                 loss.backward()
