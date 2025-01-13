@@ -100,7 +100,7 @@ class FiLMModelEvaluator():
                 output = self.model(control_emb, drug_emb, logdose)
 
                 # Compute the loss
-                loss = self.criterion(output, treated_emb)
+                loss = self.criterion(output, treated_emb, control_emb)
 
                 # Backpropagation
                 loss.backward()
