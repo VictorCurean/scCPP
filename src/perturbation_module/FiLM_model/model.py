@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from loss import ControlDivergenceLoss
 
 
 # Utility function to create an MLP dynamically
@@ -36,13 +37,14 @@ class FiLMModulator(nn.Module):
 
 # Residual block with FiLM modulation and non-linearity
 class FiLMResidualBlock(nn.Module):
-    def __init__(self, control_dim, drug_dim, hidden_dim, modulator_hidden_dims):
+    def __init__(self, control_dim, drug_dim, hidden_dim, modulator_hidden_dims, dropout_rate):
         super(FiLMResidualBlock, self).__init__()
         self.modulator = FiLMModulator(drug_dim, control_dim, modulator_hidden_dims)
         self.fc1 = nn.Linear(control_dim, hidden_dim)
         self.bn1 = nn.BatchNorm1d(hidden_dim)
         self.activation = nn.ReLU()
         self.fc2 = nn.Linear(hidden_dim, control_dim)
+        self.dropout = nn.Dropout(dropout_rate)
         self.bn2 = nn.BatchNorm1d(control_dim)
 
     def forward(self, control_emb, drug_emb, logdose):
@@ -100,7 +102,7 @@ class FiLMResidualModel(nn.Module):
 
         # Residual blocks with FiLM modulation
         self.blocks = nn.ModuleList([
-            FiLMResidualBlock(control_dim, drug_dim, block_hidden_dim, modulator_hidden_dims)
+            FiLMResidualBlock(control_dim, drug_dim, block_hidden_dim, modulator_hidden_dims, dropout_rate)
             for _ in range(num_blocks)
         ])
 

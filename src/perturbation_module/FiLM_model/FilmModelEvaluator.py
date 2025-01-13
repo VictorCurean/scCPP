@@ -16,6 +16,7 @@ from scipy.stats import spearmanr
 
 from model import FiLMResidualModel
 from dataset import SciplexDatasetBaseline
+from loss import ControlDivergenceLoss
 
 
 class FiLMModelEvaluator():
@@ -45,7 +46,7 @@ class FiLMModelEvaluator():
                                     lr=self.config['train_params']['lr'],
                                     weight_decay=self.config['train_params']['weight_decay'])
         #self.criterion = nn.MSELoss()
-        self.criterion = nn.L1Loss()
+        self.criterion = ControlDivergenceLoss(alpha=0.1)
 
         self.model = self.model.to(self.device)
 
