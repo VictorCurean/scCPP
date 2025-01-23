@@ -1,2 +1,3 @@
-# dege-fm
-Drug Evaluation using Gene Expression and single-cell Foundation Models
+# scFiLM
+
+Single-Cell chemical perturbation prediction using foundation models and Feature-wIse Linear Modulation
