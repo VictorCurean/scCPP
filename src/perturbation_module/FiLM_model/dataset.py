@@ -11,10 +11,13 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 
 
-class SciplexDatasetBaseline(Dataset):
-    def __init__(self, adata_file, drug_list):
+class SciplexDatasetUnseenPerturbations(Dataset):
+    def __init__(self, adata_file, drug_list, n_match=1, pct_treatement_negative=0, pct_dosage_negative=0):
         self.SEP = "_"
         self.drug_list = drug_list
+        self.n_match = n_match
+        self.pct_treatement_negative = pct_treatement_negative
+        self.pct_dosage_negative = pct_dosage_negative
 
         self.adata = ad.read_h5ad(adata_file)
         self.data_processed = list()
@@ -58,33 +61,51 @@ class SciplexDatasetBaseline(Dataset):
                 else:
                     raise ValueError(f"Unknown cell type: {cell_meta['cell_type']}")
 
-                # Randomly select a control cell from the relevant pool
-                random_row_idx = np.random.choice(control_pool.shape[0])
-                matched_control = control_pool[random_row_idx]
+                for i in range(self.n_match):
 
-                #get drug embedding
-                drug_emb = ast.literal_eval(cell_meta['sm_embedding'])
+                    # Randomly select a control cell from the relevant pool
+                    random_row_idx = np.random.choice(control_pool.shape[0])
+                    matched_control = control_pool[random_row_idx]
 
-                #natural log of dose
-                dose = math.log1p(cell_meta['dose'])
+                    #get drug embedding
+                    drug_emb = ast.literal_eval(cell_meta['sm_embedding'])
 
-                #metadata
-                meta = dict()
-                meta['compound'] = cell_meta['product_name']
-                meta['dose'] = cell_meta['dose']
-                meta['cell_type'] = cell_meta['cell_type']
+                    #natural log of dose
+                    dose = math.log1p(cell_meta['dose'])
+
+                    #metadata
+                    meta = dict()
+                    meta['compound'] = cell_meta['product_name']
+                    meta['dose'] = cell_meta['dose']
+                    meta['cell_type'] = cell_meta['cell_type']
 
 
-                # Store the treated and matched control metadata
-                data_list.append({
-                    "idx": idx,
-                    "treated_emb": torch.tensor(cell_emb, dtype=torch.float),
-                    "matched_control_emb": torch.tensor(matched_control, dtype=torch.float),
-                    "drug_emb": torch.tensor(drug_emb, dtype=torch.float),
-                    "logdose": torch.tensor([dose], dtype=torch.float),
-                    "meta": meta
-                })
+                    # Store the treated and matched control metadata
+                    data_list.append({
+                        "idx": idx,
+                        "treated_emb": torch.tensor(cell_emb, dtype=torch.float),
+                        "matched_control_emb": torch.tensor(matched_control, dtype=torch.float),
+                        "drug_emb": torch.tensor(drug_emb, dtype=torch.float),
+                        "logdose": torch.tensor([dose], dtype=torch.float),
+                        "meta": meta
+                    })
+
         self.data_processed = data_list
+
+    def add_treatement_negative(self):
+        if self.pct_treatement_negative == 0:
+            return
+        else:
+            # TODO
+
+
+    def add_dosage_negative(self):
+        if self.pct_dosage_negative == 0:
+            return
+        else:
+            # TODO
+            pass
+
 
     def __getitem__(self, idx):
         val = self.data_processed[idx]

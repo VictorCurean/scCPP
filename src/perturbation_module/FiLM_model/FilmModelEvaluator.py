@@ -15,7 +15,7 @@ from scipy.spatial.distance import euclidean
 from scipy.stats import spearmanr
 
 from model import FiLMResidualModel
-from dataset import SciplexDatasetBaseline
+from dataset import SciplexDatasetUnseenPerturbations
 from loss import ControlDivergenceLoss
 
 
@@ -61,14 +61,14 @@ class FiLMModelEvaluator():
             drugs_validation = [line.strip() for line in f]
 
         print("Loading sciplex train dataset ...")
-        sciplex_dataset_train = SciplexDatasetBaseline(self.config['dataset_params']['sciplex_adata_path'],
-                                                      drugs_train)
+        sciplex_dataset_train = SciplexDatasetUnseenPerturbations(self.config['dataset_params']['sciplex_adata_path'],
+                                                                  drugs_train)
         self.sciplex_loader_train = DataLoader(sciplex_dataset_train, batch_size=self.config['train_params']['batch_size'],
                                          shuffle=True,
                                          num_workers=0)
 
         print("Loading sciplex test dataset ...")
-        sciplex_dataset_test = SciplexDatasetBaseline(self.config['dataset_params']['sciplex_adata_path'], drugs_validation)
+        sciplex_dataset_test = SciplexDatasetUnseenPerturbations(self.config['dataset_params']['sciplex_adata_path'], drugs_validation)
         self.sciplex_loader_test = DataLoader(sciplex_dataset_test, batch_size=self.config['train_params']['batch_size'],
                                          shuffle=True, num_workers=0)
 
