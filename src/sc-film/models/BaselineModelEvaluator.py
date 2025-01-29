@@ -1,22 +1,17 @@
-import math
 import yaml
 import numpy as np
 import seaborn as sns
-import anndata as ad
 import pandas as pd
-import scanpy as sc
 from tqdm import tqdm
 import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 import matplotlib.pyplot as plt
-from scipy.spatial.distance import euclidean
 from scipy.stats import spearmanr
 
 from model import ConditionalFeedForwardNN
 from dataset import SciplexDatasetBaseline
-from dataset_zhao import ZhaoDatasetBaseline
 
 
 class BaselineModelEvaluator():

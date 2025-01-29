@@ -18,6 +18,7 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         self.n_match = n_match
         self.pct_treatement_negative = pct_treatement_negative
         self.pct_dosage_negative = pct_dosage_negative
+        self.drug_emb_dim = 256
 
         self.adata = ad.read_h5ad(adata_file)
         self.data_processed = list()
@@ -96,8 +97,37 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         if self.pct_treatement_negative == 0:
             return
         else:
-            # TODO
+            # calculate how many negative pairs to add per cell type
+            no_examples_to_add_total = round(self.pct_treatement_negative * len(self.data_processed))
+            no_examples_to_add_per_celltype = round(no_examples_to_add_total/3)
 
+            control_A549 = adata[(adata.obs['cell_type'] == "A549") & (adata.obs['product_name'] == "Vehicle")].X
+            control_K562 = adata[(adata.obs['cell_type'] == "K562") & (adata.obs['product_name'] == "Vehicle")].X
+            control_MCF7 = adata[(adata.obs['cell_type'] == "MCF7") & (adata.obs['product_name'] == "Vehicle")].X
+
+            control_pools = [control_A549, control_K562, control_MCF7]
+
+            data_list_negative = list()
+
+            idx = 10000000
+
+            #for each cell type, add negative pairs
+            for control in control_pools:
+                cell_type = list(control.obs['cell_type'].unique())[0]
+                for x in range(no_examples_to_add_per_celltype):
+                    random_control = control[np.random.choice(control.shape[0])]
+                    idx += 1
+
+                    data_list_negative.append({
+                        "idx": idx,
+                        "treated_emb": torch.tensor(random_control, dtype=torch.float),
+                        "matched_control_emb": torch.tensor(random_control, dtype=torch.float),
+                        "drug_emb": torch.zeros(self.drug_emb_dim)
+                        "logdose": torch.tensor([0], dtype=torch.float),
+                        "meta": {"compound": None, "dose": 0, "cell_type": cell_type }
+                    })
+
+            self.data_processed.extend(data_list_negative)
 
     def add_dosage_negative(self):
         if self.pct_dosage_negative == 0:

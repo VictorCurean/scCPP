@@ -1,22 +1,16 @@
-import math
 import yaml
 import numpy as np
 import seaborn as sns
-import anndata as ad
 import pandas as pd
-import scanpy as sc
 from tqdm import tqdm
 import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 import matplotlib.pyplot as plt
-from scipy.spatial.distance import euclidean
-from scipy.stats import spearmanr
 
 from model import FiLMResidualModel
 from dataset import SciplexDatasetUnseenPerturbations
-from loss import ControlDivergenceLoss
 
 
 class FiLMModelEvaluator():
@@ -46,7 +40,6 @@ class FiLMModelEvaluator():
                                     lr=self.config['train_params']['lr'],
                                     weight_decay=self.config['train_params']['weight_decay'])
         self.criterion = nn.MSELoss()
-        #self.criterion = ControlDivergenceLoss(alpha=0.1)
 
         self.model = self.model.to(self.device)
 
@@ -203,156 +196,6 @@ class FiLMModelEvaluator():
             raise ValueError(f"Unsupported file format: {file_extension}")
 
         print(f"Results saved to {save_path}.")
-
-    def get_stats(self, dist_func):
-        pcp_results = self.get_PCP(dist_func)
-        pr_results_perturbed, pr_results_predicted = self.get_PR(dist_func)
-        loss_results = self.get_validation_loss(dist_func)
-        null_model_loss_results = self.get_null_model_loss(dist_func)
-
-        print("Test PCP:", pcp_results)
-        print("Test PR perturbed:", pr_results_perturbed)
-        print("Test PR predicted:", pr_results_predicted)
-        print("Test Loss:", loss_results)
-        print("Null Model Loss:", null_model_loss_results)
-
-
-    def get_PCP(self, dist_func):
-        """
-        Get PCP (procentage closer to perturb) based on a given dist function.
-        The dist function takes as input two centroids
-        """
-
-        results = {"A549": None, "K562": None, "MCF7": None}
-
-        for cell_type in self.test_results['cell_type'].unique():
-            no_closer_to_reference = 0
-            no_closer_to_perturbed = 0
-
-            for compound in tqdm(list(self.test_results['compound'].unique())):
-                for dose in self.test_results['dose'].unique():
-
-                    df_subset = self.test_results[(self.test_results['cell_type'] == cell_type) &
-                                                  (self.test_results['compound'] == compound) &
-                                                  (self.test_results['dose'] == dose)]
-
-                    centroid_reference =  np.array(df_subset['ctrl_emb'].tolist()).mean(axis=0)
-                    centroid_perturbed = np.array(df_subset['pert_emb'].tolist()).mean(axis=0)
-                    centroid_predicted = np.array(df_subset['pred_emb'].tolist()).mean(axis=0)
-
-                    if dist_func(centroid_reference, centroid_predicted) < dist_func(centroid_perturbed, centroid_predicted):
-                        no_closer_to_reference += 1
-                    else:
-                        no_closer_to_perturbed += 1
-
-
-
-            # Compute the proportion
-            total_comparisons = no_closer_to_reference + no_closer_to_perturbed
-            pcp = no_closer_to_perturbed / total_comparisons
-
-            results[cell_type] = pcp
-
-
-
-        return results
-
-    def get_PR(self, dist_func):
-        """
-        Get PR (prediction robustness), which measures the spearman correlation between dose and distance to control
-        """
-
-        results_perturbed = {"A549": None, "K562": None, "MCF7": None}
-        results_predicted = {"A549": None, "K562": None, "MCF7": None}
-
-        for cell_type in self.test_results['cell_type'].unique():
-            correlations_perturbed = list()
-            correlation_predicted = list()
-
-            for compound in tqdm(list(self.test_results['compound'].unique())):
-
-
-                df_subset = self.test_results[(self.test_results['cell_type'] == cell_type) &
-                                              (self.test_results['compound'] == compound)]
-
-
-
-                centroid_reference = np.array(df_subset['ctrl_emb'].tolist()).mean(axis=0)
-
-                doses = sorted(list(df_subset['dose'].unique()))
-                perturbed_dist_to_reference = list()
-                predicted_dist_to_reference = list()
-
-                for dose in doses:
-                    df_dose = df_subset[df_subset['dose'] == dose]
-
-                    centroid_perturbed = np.array(df_dose['pert_emb'].tolist()).mean(axis=0)
-                    centroid_predicted = np.array(df_dose['pred_emb'].tolist()).mean(axis=0)
-
-                    dist_reference_perturbed = dist_func(centroid_reference, centroid_perturbed)
-                    dist_reference_predicted = dist_func(centroid_reference, centroid_predicted)
-
-                    perturbed_dist_to_reference.append(dist_reference_perturbed)
-                    predicted_dist_to_reference.append(dist_reference_predicted)
-
-                corr_perturbed, _ = spearmanr(doses, perturbed_dist_to_reference)
-                corr_predicted, _ = spearmanr(doses, predicted_dist_to_reference)
-
-                correlations_perturbed.append(corr_perturbed)
-                correlation_predicted.append(corr_predicted)
-
-            corr_perturbed_mean = np.mean(correlations_perturbed)
-            corr_predicted_mean = np.mean(correlation_predicted)
-
-            results_perturbed[cell_type] = corr_perturbed_mean
-            results_predicted[cell_type] = corr_predicted_mean
-
-        return results_perturbed, results_predicted
-
-    def get_validation_loss(self, dist_func):
-        """
-        Get average distance between reference and predicted for each cell type
-        """
-
-        results = {"A549": None, "K562": None, "MCF7": None}
-
-        for cell_type in self.test_results['cell_type'].unique():
-            losses = list()
-
-            df_subset = self.test_results[self.test_results['cell_type'] == cell_type]
-
-            for i, row in df_subset.iterrows():
-                losses.append(dist_func(np.array(row['pert_emb']), np.array(row['pred_emb'])))
-
-            avg_loss = np.mean(losses)
-
-            results[cell_type] = avg_loss
-
-        return results
-
-
-    def get_null_model_loss(self, dist_func):
-        """
-        Get null model loss for each cell type. In this case, a null model predicts no change so the loss becomes
-        the distance function between paired control and treated cells
-        """
-
-        results = {"A549": None, "K562": None, "MCF7": None}
-
-        for cell_type in self.test_results['cell_type'].unique():
-            losses = list()
-
-            df_subset = self.test_results[self.test_results['cell_type'] == cell_type]
-
-            for i, row in df_subset.iterrows():
-                losses.append(dist_func(np.array(row['ctrl_emb']), np.array(row['pert_emb'])))
-
-            avg_loss = np.mean(losses)
-
-            results[cell_type] = avg_loss
-
-        return results
-
 
     def plot_training_loss(self):
         plt.figure(figsize=(8, 6))
