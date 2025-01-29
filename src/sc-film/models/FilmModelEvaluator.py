@@ -8,8 +8,8 @@ import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 import matplotlib.pyplot as plt
 
-from sc_film_v2 import FiLMResidualModel
-
+#from sc_film_v2 import FiLMResidualModel
+#TODO IMPORT DATASET
 
 class FiLMModelEvaluator():
 
