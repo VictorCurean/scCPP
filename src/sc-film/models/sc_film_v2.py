@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from loss import ControlDivergenceLoss
 
 
 # Utility function to create an MLP dynamically

@@ -124,7 +124,7 @@ class SciplexDatasetUnseenPerturbations(Dataset):
                         "idx": idx,
                         "treated_emb": torch.tensor(random_control, dtype=torch.float),
                         "matched_control_emb": torch.tensor(random_control, dtype=torch.float),
-                        "drug_emb": torch.zeros(self.drug_emb_dim)
+                        "drug_emb": torch.zeros(self.drug_emb_dim),
                         "logdose": torch.tensor([0], dtype=torch.float),
                         "meta": {"compound": None, "dose": 0, "cell_type": cell_type }
                     })
