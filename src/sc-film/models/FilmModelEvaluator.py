@@ -8,7 +8,7 @@ import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 import matplotlib.pyplot as plt
 
-from dataset.dataset_sciplex import SciplexDatasetUnseenPerturbations
+import models.dataset_sciplex.SciplexDatasetUnseenPerturbations
 from sc_film_v2 import FiLMResidualModel
 
 
