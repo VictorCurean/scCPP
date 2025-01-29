@@ -10,6 +10,7 @@ from torch.utils.data.dataloader import DataLoader
 import matplotlib.pyplot as plt
 
 from ..dataset.dataset_sciplex import SciplexDatasetUnseenPerturbations
+from sc_film_v2 import FiLMResidualModel
 
 
 class FiLMModelEvaluator():
