@@ -7,7 +7,7 @@ from scipy.stats import spearmanr
 from tqdm import tqdm
 
 
-def calculate_edistance(X, Y)
+def calculate_edistance(X, Y):
     """
     Calculate edistances between two matrices
     """
@@ -32,10 +32,10 @@ def get_model_stats(formatted_test_results):
     Calculate test results statistics
     """
 
-    results_pred_loss = {"A549": None, "K562": None, "MCF7": None}
-    results_null_loss = {"A549": None, "K562": None, "MCF7": None}
-    results_PCP = {"A549": None, "K562": None, "MCF7": None}
-    results_PR = {"A549": None, "K562": None, "MCF7": None}
+    results_pred_loss = dict()
+    results_null_loss = dict()
+    results_PCP = dict()
+    results_PR = dict()
 
 
     for cell_type in formatted_test_results['cell_type'].unique():
@@ -67,18 +67,23 @@ def get_model_stats(formatted_test_results):
                 distances_to_ctrl.append(edist_ctrl_pred)
 
                 if edist_pert_pred < edist_ctrl_pred:
-                    PCP.append(1)
+                    PCP.append(True)
+                else:
+                    PCP.append(False)
 
                 pred_losses.append(edist_pert_pred)
                 null_losses.append(edist_ctrl_pert)
 
+                key1 = cell_type + "_" + (compound + "_" + str(dose)
+                results_pred_loss[key1] = pred_losses
+                results_null_loss[key1] = null_losses
+                results_PCP[key1] = PCP
+
             corr, _ = spermanr(list(formatted_test_results['dose'].unique()), distances_to_ctrl)
             PR.append(corr)
 
-        results_pred_loss[cell_type] = pred_losses
-        results_null_loss[cell_type] = null_losses
-        results_PCP[cell_type] = PCP
-        results_PR[cell_type] = PR
+        key2 = cell_type + "_" + compound
+        results_PR[key2] = PR
 
     return results_pred_loss, results_null_loss, results_PCP, results_PR
 

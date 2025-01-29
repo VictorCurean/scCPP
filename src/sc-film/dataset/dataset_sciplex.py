@@ -23,6 +23,8 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         self.adata = ad.read_h5ad(adata_file)
         self.data_processed = list()
         self.__match_control_to_treated()
+        self.add_treatement_negative()
+        self.add_dosage_negative()
 
     def __len__(self):
         # Return the number of samples

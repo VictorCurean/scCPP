@@ -9,8 +9,7 @@ import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 import matplotlib.pyplot as plt
 
-from model import FiLMResidualModel
-from dataset import SciplexDatasetUnseenPerturbations
+from ..dataset.dataset_sciplex import SciplexDatasetUnseenPerturbations
 
 
 class FiLMModelEvaluator():
@@ -207,5 +206,5 @@ class FiLMModelEvaluator():
         plt.show()
 
 
-    def get_model(self):
-        return self.trained_model
+    def get_test_results(self):
+        return self.test_results
