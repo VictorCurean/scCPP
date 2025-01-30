@@ -33,16 +33,27 @@ class FiLMModelEvaluator():
         #prepare model
         self.__prepare_model()
 
-        #read data
-        self.__read_data()
-
-    def __read_config(self, config_path):
+    def __read_config(self, config_path, sciplex_dataset_train, sciplex_dataset_validation, sciplex_dataset_test):
         with open(config_path, 'r') as file:
             try:
                 self.config = yaml.safe_load(file)
             except yaml.YAMLError as exc:
                 print(exc)
                 raise RuntimeError(exc)
+
+        self.sciplex_loader_train = DataLoader(sciplex_dataset_train,
+                                               batch_size=self.config['train_params']['batch_size'],
+                                               shuffle=True,
+                                               num_workers=0)
+
+        self.sciplex_loader_validation = DataLoader(sciplex_dataset_validation,
+                                               batch_size=self.config['train_params']['batch_size'],
+                                               shuffle=True,
+                                               num_workers=0)
+
+        self.sciplex_loader_test = DataLoader(sciplex_dataset_test,
+                                              batch_size=self.config['train_params']['batch_size'],
+                                              shuffle=True, num_workers=0)
 
     def __prepare_model(self):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -53,28 +64,6 @@ class FiLMModelEvaluator():
         self.criterion = nn.L1Loss()
 
         self.model = self.model.to(self.device)
-
-    def __read_data(self):
-
-        #list of drugs to include in the training and test splot
-
-        with open(self.config['dataset_params']['sciplex_drugs_train'], "r") as f:
-            drugs_train = [line.strip() for line in f]
-
-        with open(self.config['dataset_params']['sciplex_drugs_test'], "r") as f:
-            drugs_validation = [line.strip() for line in f]
-
-        print("Loading sciplex train dataset ...")
-        sciplex_dataset_train = SciplexDatasetUnseenPerturbations(self.config['dataset_params']['sciplex_adata_path'],
-                                                                  drugs_train)
-        self.sciplex_loader_train = DataLoader(sciplex_dataset_train, batch_size=self.config['train_params']['batch_size'],
-                                         shuffle=True,
-                                         num_workers=0)
-
-        print("Loading sciplex test dataset ...")
-        sciplex_dataset_test = SciplexDatasetUnseenPerturbations(self.config['dataset_params']['sciplex_adata_path'], drugs_validation)
-        self.sciplex_loader_test = DataLoader(sciplex_dataset_test, batch_size=self.config['train_params']['batch_size'],
-                                         shuffle=True, num_workers=0)
 
     def train(self):
         print("Begin training ...")
@@ -117,8 +106,34 @@ class FiLMModelEvaluator():
 
                 iteration += 1
 
+                #############VALIDATION LOOP#################
+
                 if iteration % every_n == 0:
-                    print("Iteration:", iteration, "Loss:", loss.item())
+
+
+                    validation_losses = list()
+                    with torch.no_grad():
+                        for control_emb, drug_emb, logdose, treated_emb, meta in self.sciplex_loader_validation:
+                            control_emb, drug_emb, logdose, treated_emb = (
+                                control_emb.to(device),
+                                drug_emb.to(device),
+                                logdose.to(device),
+                                treated_emb.to(device),
+                            )
+
+                            # Forward pass
+                            output_validation = self.model(control_emb, drug_emb, logdose)
+
+                            # Compute loss
+                            validation_loss = self.criterion(output_validation, treated_emb)
+
+                            # Track validation loss
+                            validation_losses.append(validation_loss.item())
+
+
+                    print("Iteration:", iteration, "Test Loss:", loss.item(), "Avg. Validation Loss:", np.mean(validation_losses))
+
+                #############VALIDATION LOOP#################
 
         self.losses_train = losses
         self.trained_model = self.model
