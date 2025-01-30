@@ -20,8 +20,7 @@ import ast
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 
-#from sc_film_v2 import FiLMResidualModel
-#TODO IMPORT DATASET
+
 
 class FiLMModelEvaluator():
 
