@@ -26,20 +26,12 @@ from dataset import SciplexDatasetUnseenPerturbations
 
 class FiLMModelEvaluator():
 
-    def __init__(self, config_path):
+    def __init__(self, config_path, sciplex_dataset_train, sciplex_dataset_validation, sciplex_dataset_test):
         # load config file
         self.__read_config(config_path)
 
         #prepare model
         self.__prepare_model()
-
-    def __read_config(self, config_path, sciplex_dataset_train, sciplex_dataset_validation, sciplex_dataset_test):
-        with open(config_path, 'r') as file:
-            try:
-                self.config = yaml.safe_load(file)
-            except yaml.YAMLError as exc:
-                print(exc)
-                raise RuntimeError(exc)
 
         self.sciplex_loader_train = DataLoader(sciplex_dataset_train,
                                                batch_size=self.config['train_params']['batch_size'],
@@ -54,6 +46,16 @@ class FiLMModelEvaluator():
         self.sciplex_loader_test = DataLoader(sciplex_dataset_test,
                                               batch_size=self.config['train_params']['batch_size'],
                                               shuffle=True, num_workers=0)
+
+    def __read_config(self, config_path):
+        with open(config_path, 'r') as file:
+            try:
+                self.config = yaml.safe_load(file)
+            except yaml.YAMLError as exc:
+                print(exc)
+                raise RuntimeError(exc)
+
+
 
     def __prepare_model(self):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
