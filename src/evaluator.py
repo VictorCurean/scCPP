@@ -50,7 +50,7 @@ class FiLMModelEvaluator():
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr=self.config['train_params']['lr'],
                                     weight_decay=self.config['train_params']['weight_decay'])
-        self.criterion = nn.MSELoss()
+        self.criterion = nn.L1Loss()
 
         self.model = self.model.to(self.device)
 

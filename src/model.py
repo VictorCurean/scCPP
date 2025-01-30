@@ -21,7 +21,7 @@ class FiLM(nn.Module):
 
 
 class FiLMModel(nn.Module):
-    def __init__(self):
+    def __init__(self, config):
 
         input_dim = config['model_params']['control_dim']
         condition_dim = config['model_params']['drug_emb_dim'] + 1 # for dose
@@ -29,7 +29,7 @@ class FiLMModel(nn.Module):
 
         super(FiLMModel, self).__init__()
         self.num_film_layers = num_film_layers
-        self.film_layers = nn.ModuleList([FiLM(input_dim, condition_dim) for _ in range(num_film_layers)])
+        self.film_layers = nn.ModuleList([FiLM(config) for _ in range(num_film_layers)])
         self.fc_out = nn.Linear(input_dim, input_dim)
 
     def forward(self, input, condition, dose):
