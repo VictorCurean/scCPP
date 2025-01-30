@@ -1,14 +1,14 @@
 model_params:
   control_dim: 1280
   drug_emb_dim: 256
-  hidden_dims_modulator: [2048, 2048]
+  hidden_dims_modulator: [4096, 2048]
   block_hidden_dim: 1280
-  num_blocks: 4
+  num_blocks: 1
   output_dim: 1280
   dropout_rate: 0.1
 
 train_params:
-  num_epochs: 3
+  num_epochs: 2
   batch_size: 512
   lr: 0.0001
   weight_decay: 0.001
