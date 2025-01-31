@@ -19,9 +19,22 @@ import anndata as ad
 import ast
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
+import torch.nn.functional as F
 
 from model import FiLMModel
 from dataset import SciplexDatasetUnseenPerturbations
+
+def loss_fn(pred, target, control):
+    # L1 loss (primary term)
+    l1_loss = F.l1_loss(pred, target)
+    
+    # Non-negative contrastive loss
+    contrastive_loss = 1 - F.cosine_similarity(pred, control).mean()
+    
+    # Directional alignment (always ≥0)
+    movement_loss = F.mse_loss(pred - control, target - control)
+    
+    return l1_loss + 0.2*contrastive_loss + 0.1*movement_loss
 
 
 class FiLMModelEvaluator():
@@ -95,7 +108,8 @@ class FiLMModelEvaluator():
                 output = self.model(control_emb, drug_emb, logdose)
 
                 # Compute the loss
-                loss = self.criterion(output, treated_emb)
+                #loss = self.criterion(output, treated_emb)
+                loss = loss_fn(output, treated_emb, control_emb)
 
                 # Backpropagation
                 loss.backward()

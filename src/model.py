@@ -11,24 +11,22 @@ class FiLM(nn.Module):
         # More robust conditioning network with regularization
         self.gamma = nn.Sequential(
             nn.Linear(condition_dim, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
+            nn.LayerNorm(hidden_dim),
             nn.ReLU(),
             nn.Dropout(config['model_params']['dropout']),
             nn.Linear(hidden_dim, hidden_dim)
         )
         self.beta = nn.Sequential(
             nn.Linear(condition_dim, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
+            nn.LayerNorm(hidden_dim),
             nn.ReLU(),
             nn.Dropout(config['model_params']['dropout']),
             nn.Linear(hidden_dim, hidden_dim)
         )
 
         # Initialize for stable L1 optimization
-        self.gamma[-1].weight.data.normal_(0, 0.01)
-        self.gamma[-1].bias.data.fill_(1.0)  # Identity initial scaling
-        self.beta[-1].weight.data.normal_(0, 0.01)
-        self.beta[-1].bias.data.fill_(0.0)
+        nn.init.uniform_(self.gamma[-1].weight, 0.9, 1.1)  # Start near identity
+        nn.init.normal_(self.beta[-1].weight, 0, 0.1)      # Small initial shifts
 
     def forward(self, x, condition, dose):
         condition = torch.cat([condition, dose], dim=-1)
@@ -44,11 +42,11 @@ class FiLMModel(nn.Module):
         # Smoother dimensionality reduction
         self.input_proj = nn.Sequential(
             nn.Linear(input_dim, 512),
-            nn.BatchNorm1d(512),
+            nn.LayerNorm(512),
             nn.ReLU(),
             nn.Dropout(config['model_params']['dropout']),
             nn.Linear(512, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
+            nn.LayerNorm(hidden_dim),
             nn.ReLU()
         )
 
@@ -56,7 +54,7 @@ class FiLMModel(nn.Module):
         self.film_layers = nn.ModuleList([
             nn.Sequential(
                 FiLM(config),
-                nn.BatchNorm1d(hidden_dim),
+                nn.LayerNorm(hidden_dim),
                 nn.ReLU()
             ) for _ in range(config['model_params']['num_layers'])
         ])
@@ -64,7 +62,7 @@ class FiLMModel(nn.Module):
         # Expanded reconstruction
         self.output_proj = nn.Sequential(
             nn.Linear(hidden_dim, 512),
-            nn.BatchNorm1d(512),
+            nn.LayerNorm(512),
             nn.ReLU(),
             nn.Dropout(config['model_params']['dropout']),
             nn.Linear(512, input_dim)

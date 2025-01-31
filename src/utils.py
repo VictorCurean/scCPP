@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import itertools
 
 from sklearn.metrics import pairwise_distances
 from scipy.stats import spearmanr
@@ -106,8 +107,11 @@ def plot_results(results_formatted, cell_type):
     data = [predloss_10, nullloss_10, predloss_100, nullloss_100, predloss_1000, nullloss_1000, predloss_10000,
             nullloss_10000]
 
-    print("Avg Pred Loss:", np.mean(predloss_10 + predloss_100 + predloss_1000, + predloss_10000))
-    print("Avg Null Loss:", np.mean(nullloss_10, nullloss_100, nullloss_1000, nullloss_10000))
+    pred_loss_total = list(itertools.chain(predloss_10, predloss_100, predloss_1000, predloss_10000))
+    null_loss_total = list(itertools.chain(nullloss_10, nullloss_100, nullloss_1000, nullloss_10000))
+    
+    print("Avg Pred Loss:", np.mean(pred_loss_total))
+    print("Avg Null Loss:", np.mean(null_loss_total))
 
     # Create boxplot
     plt.figure(figsize=(8, 6))
