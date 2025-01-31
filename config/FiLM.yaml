@@ -1,8 +1,9 @@
 model_params:
   control_dim: 1280
   drug_emb_dim: 256
+  hidden_dim: 256
   num_layers: 3
-  dropout_rate: 0.1
+  dropout: 0.1
 
 train_params:
   num_epochs: 4

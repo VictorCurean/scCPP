@@ -106,6 +106,9 @@ def plot_results(results_formatted, cell_type):
     data = [predloss_10, nullloss_10, predloss_100, nullloss_100, predloss_1000, nullloss_1000, predloss_10000,
             nullloss_10000]
 
+    print("Avg Pred Loss:", np.mean(predloss_10 + predloss_100 + predloss_1000, + predloss_10000))
+    print("Avg Null Loss:", np.mean(nullloss_10, nullloss_100, nullloss_1000, nullloss_10000))
+
     # Create boxplot
     plt.figure(figsize=(8, 6))
     sns.boxplot(data=data, width=0.15, showmeans=True)
