@@ -11,9 +11,10 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 
 class SciplexDatasetUnseenPerturbations(Dataset):
-    def __init__(self, adata_file, drug_list, n_match=1, pct_treatement_negative=0, pct_dosage_negative=0):
+    def __init__(self, adata_file, drug_list, dose, n_match=1, pct_treatement_negative=0, pct_dosage_negative=0):
         self.SEP = "_"
         self.drug_list = drug_list
+        self.dose = dose
         self.n_match = n_match
         self.pct_treatement_negative = pct_treatement_negative
         self.pct_dosage_negative = pct_dosage_negative
@@ -47,6 +48,9 @@ class SciplexDatasetUnseenPerturbations(Dataset):
                 continue
 
             if cell_meta['product_name'] not in self.drug_list:
+                continue
+
+            if cell_meta['dose'] != self.dose:
                 continue
 
             else:

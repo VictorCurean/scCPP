@@ -64,13 +64,11 @@ def get_model_stats(formatted_test_results):
     return results_pred_loss, results_null_loss, results_similarity_loss
 
 
-def get_res_stratified(results, cell_type, dose):
+def get_res_stratified(results, cell_type):
     out = list()
     for key, value in results.items():
         ct = key.split("_")[0]
-        ds = float(key.split("_")[2])
-
-        if ct == cell_type and ds == dose:
+        if ct == cell_type:
             out.append(value)
 
     return out
@@ -78,22 +76,16 @@ def get_res_stratified(results, cell_type, dose):
 
 def plot_results(results_formatted, cell_type):
     predloss = get_res_stratified(results_formatted[0], cell_type)
-
-
     nullloss = get_res_stratified(results_formatted[1], cell_type)
-    nullloss_100 = get_res_stratified(results_formatted[1], cell_type, 100.0)
-    nullloss_1000 = get_res_stratified(results_formatted[1], cell_type, 1000.0)
-    nullloss_10000 = get_res_stratified(results_formatted[1], cell_type, 10000.0)
+    similarityloss = get_res_stratified(results_formatted[2], cell_type)
+
 
     # Group the lists into pairs
-    data = [predloss_10, nullloss_10, predloss_100, nullloss_100, predloss_1000, nullloss_1000, predloss_10000,
-            nullloss_10000]
+    data = [predloss, nullloss, similarityloss]
 
-    pred_loss_total = list(itertools.chain(predloss_10, predloss_100, predloss_1000, predloss_10000))
-    null_loss_total = list(itertools.chain(nullloss_10, nullloss_100, nullloss_1000, nullloss_10000))
-    
-    print("Avg Pred Loss:", np.mean(pred_loss_total))
-    print("Avg Null Loss:", np.mean(null_loss_total))
+    print("Avg Pred Loss:", np.mean(predloss))
+    print("Avg Null Loss:", np.mean(nullloss))
+    print("Avg Similarity Loss:", np.mean(similarityloss))
 
     # Create boxplot
     plt.figure(figsize=(8, 6))
@@ -101,10 +93,9 @@ def plot_results(results_formatted, cell_type):
 
     # Adjust x-ticks to group pairs
     plt.xticks(ticks=range(8),
-               labels=["Pred_10", "Null_10", "Pred_100", "Null_100", "Pred_1000", "Null_1000", "Pred_10000",
-                       "Null_10000"])
+               labels=["Predicted-Perturbed", "Control-Perturbed", "Predicted Control"])
     plt.title(cell_type)
-    plt.xlabel("Dosage")
+    plt.xlabel("Distance")
     plt.ylabel("E-distance")
 
     plt.show()
