@@ -81,18 +81,17 @@ class FiLMModelEvaluator():
         for epoch in range(num_epochs):
             print(f"Epoch {epoch + 1}/{num_epochs}")
 
-            for control_emb, drug_emb, logdose, treated_emb, meta in self.sciplex_loader_train:
+            for control_emb, drug_emb, treated_emb, meta in self.sciplex_loader_train:
                 # Move tensors to the specified device
                 control_emb = control_emb.to(device)
                 drug_emb = drug_emb.to(device)
-                logdose = logdose.to(device)
                 treated_emb = treated_emb.to(device)
 
                 # Zero the gradients
                 self.optimizer.zero_grad()
 
                 # Forward pass through the model
-                output = self.model(control_emb, drug_emb, logdose)
+                output = self.model(control_emb, drug_emb)
 
                 # Compute the loss
                 loss = self.criterion(output, treated_emb)
@@ -115,16 +114,15 @@ class FiLMModelEvaluator():
 
                     validation_losses = list()
                     with torch.no_grad():
-                        for control_emb, drug_emb, logdose, treated_emb, meta in self.sciplex_loader_validation:
-                            control_emb, drug_emb, logdose, treated_emb = (
+                        for control_emb, drug_emb, treated_emb, meta in self.sciplex_loader_validation:
+                            control_emb, drug_emb, treated_emb = (
                                 control_emb.to(device),
                                 drug_emb.to(device),
-                                logdose.to(device),
                                 treated_emb.to(device),
                             )
 
                             # Forward pass
-                            output_validation = self.model(control_emb, drug_emb, logdose)
+                            output_validation = self.model(control_emb, drug_emb)
 
                             # Compute loss
                             validation_loss = self.criterion(output_validation, treated_emb)
@@ -150,21 +148,19 @@ class FiLMModelEvaluator():
         treated_embeddings = []
         model_output = []
         compounds_list = []
-        doses_list = []
         cell_types_list = []
 
         self.trained_model.eval()  # Set the model to evaluation mode
 
         with torch.no_grad():  # Disable gradient computation
-            for control_emb, drug_emb, logdose, treated_emb, meta in tqdm(self.sciplex_loader_test):
+            for control_emb, drug_emb, treated_emb, meta in tqdm(self.sciplex_loader_test):
                 # Move tensors to the specified device
                 control_emb = control_emb.to(self.device)
                 drug_emb = drug_emb.to(self.device)
-                logdose = logdose.to(self.device)
                 treated_emb = treated_emb.to(self.device)
 
                 # Forward pass through the model
-                output = self.trained_model(control_emb, drug_emb, logdose)
+                output = self.trained_model(control_emb, drug_emb)
 
                 # Convert tensors to lists of NumPy arrays for DataFrame compatibility
                 control_emb_list = [x.cpu().numpy() for x in torch.unbind(control_emb, dim=0)]
@@ -173,8 +169,6 @@ class FiLMModelEvaluator():
 
                 # Meta information
                 compounds = meta['compound']
-                doses = meta['dose']
-                doses = [d.item() for d in doses]
                 cell_types = meta['cell_type']
 
                 # Append results to lists
@@ -182,7 +176,6 @@ class FiLMModelEvaluator():
                 treated_embeddings.extend(treated_emb_list)
                 model_output.extend(output_list)
                 compounds_list.extend(compounds)
-                doses_list.extend(doses)
                 cell_types_list.extend(cell_types)
 
         # Save results into a DataFrame
@@ -191,7 +184,6 @@ class FiLMModelEvaluator():
             "pert_emb": treated_embeddings,
             "pred_emb": model_output,
             "compound": compounds_list,
-            "dose": doses_list,
             "cell_type": cell_types_list,
         })
 

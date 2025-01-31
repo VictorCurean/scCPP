@@ -69,13 +69,10 @@ class SciplexDatasetUnseenPerturbations(Dataset):
                     #get drug embedding
                     drug_emb = ast.literal_eval(cell_meta['sm_embedding'])
 
-                    #natural log of dose
-                    dose = math.log1p(cell_meta['dose'])
 
                     #metadata
                     meta = dict()
                     meta['compound'] = cell_meta['product_name']
-                    meta['dose'] = cell_meta['dose']
                     meta['cell_type'] = cell_meta['cell_type']
 
 
@@ -85,7 +82,6 @@ class SciplexDatasetUnseenPerturbations(Dataset):
                         "treated_emb": torch.tensor(cell_emb, dtype=torch.float),
                         "matched_control_emb": torch.tensor(matched_control, dtype=torch.float),
                         "drug_emb": torch.tensor(drug_emb, dtype=torch.float),
-                        "logdose": torch.tensor([dose], dtype=torch.float),
                         "meta": meta
                     })
 
@@ -121,8 +117,7 @@ class SciplexDatasetUnseenPerturbations(Dataset):
                         "treated_emb": torch.tensor(random_control, dtype=torch.float),
                         "matched_control_emb": torch.tensor(random_control, dtype=torch.float),
                         "drug_emb": torch.zeros(self.drug_emb_dim),
-                        "logdose": torch.tensor([0], dtype=torch.float),
-                        "meta": {"compound": None, "dose": 0, "cell_type": cell_type }
+                        "meta": {"compound": None, "cell_type": cell_type }
                     })
 
             self.data_processed.extend(data_list_negative)
@@ -138,11 +133,10 @@ class SciplexDatasetUnseenPerturbations(Dataset):
     def __getitem__(self, idx):
         val = self.data_processed[idx]
 
-        #concatenate control, drug embedding, dose
+        #concatenate control, drug embedding,
         control_emb = val['matched_control_emb']
         drug_emb = val['drug_emb']
-        logdose = val['logdose']
         treated_emb = val['treated_emb']
         meta = val['meta']
 
-        return control_emb, drug_emb, logdose, treated_emb, meta
+        return control_emb, drug_emb, treated_emb, meta

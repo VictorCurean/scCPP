@@ -1,8 +1,9 @@
 model_params:
-  cell_embedding_dim: 1280
+  control_dim: 1280
   output_dim: 1280
-  condition_dim: 256
-  hidden_dims: [2560, 1280, 1280]
+  drug_emb_dim: 256
+  mlp_hidden_dims: [2560, 1280, 1280]
+  dropout: 0.1
 
 train_params:
   num_epochs: 4

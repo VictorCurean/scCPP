@@ -36,8 +36,7 @@ def get_model_stats(formatted_test_results):
 
     results_pred_loss = dict()
     results_null_loss = dict()
-    results_PCP = dict()
-    results_PR = dict()
+    results_similarity_loss = dict()
 
     for cell_type in formatted_test_results['cell_type'].unique():
         losses = list()
@@ -45,38 +44,23 @@ def get_model_stats(formatted_test_results):
         df_subset = formatted_test_results[formatted_test_results['cell_type'] == cell_type]
 
         for compound in tqdm(list(formatted_test_results['compound'].unique())):
-            distances_to_ctrl = list()
-            for dose in sorted(formatted_test_results['dose'].unique()):
-                df_subset = formatted_test_results[(formatted_test_results['cell_type'] == cell_type) &
-                                                   (formatted_test_results['compound'] == compound) &
-                                                   (formatted_test_results['dose'] == dose)]
+            df_subset = formatted_test_results[(formatted_test_results['cell_type'] == cell_type) &
+                                               (formatted_test_results['compound'] == compound)]
 
-                ctrl_X = np.array(df_subset['ctrl_emb'].tolist())
-                pert_X = np.array(df_subset['pert_emb'].tolist())
-                pred_X = np.array(df_subset['pred_emb'].tolist())
+            ctrl_X = np.array(df_subset['ctrl_emb'].tolist())
+            pert_X = np.array(df_subset['pert_emb'].tolist())
+            pred_X = np.array(df_subset['pred_emb'].tolist())
 
-                edist_ctrl_pert = calculate_edistance(ctrl_X, pert_X)
-                edist_ctrl_pred = calculate_edistance(ctrl_X, pred_X)
-                edist_pert_pred = calculate_edistance(pert_X, pred_X)
+            edist_ctrl_pert = calculate_edistance(ctrl_X, pert_X)
+            edist_ctrl_pred = calculate_edistance(ctrl_X, pred_X)
+            edist_pert_pred = calculate_edistance(pert_X, pred_X)
 
-                distances_to_ctrl.append(edist_ctrl_pred)
+            key = cell_type + "_" + compound
+            results_pred_loss[key] = edist_pert_pred
+            results_null_loss[key] = edist_ctrl_pert
+            results_similarity_loss[key] = edist_ctrl_pred
 
-                is_closer = None
-                if edist_pert_pred < edist_ctrl_pred:
-                    is_closer = True
-                else:
-                    is_closer = False
-
-                key1 = cell_type + "_" + compound + "_" + str(dose)
-                results_pred_loss[key1] = edist_pert_pred
-                results_null_loss[key1] = edist_ctrl_pert
-                results_PCP[key1] = is_closer
-
-            corr, _ = spearmanr(list(formatted_test_results['dose'].unique()), distances_to_ctrl)
-            key2 = cell_type + "_" + compound
-            results_PR[key2] = corr
-
-    return results_pred_loss, results_null_loss, results_PCP, results_PR
+    return results_pred_loss, results_null_loss, results_similarity_loss
 
 
 def get_res_stratified(results, cell_type, dose):
@@ -92,12 +76,10 @@ def get_res_stratified(results, cell_type, dose):
 
 
 def plot_results(results_formatted, cell_type):
-    predloss_10 = get_res_stratified(results_formatted[0], cell_type, 10.0)
-    predloss_100 = get_res_stratified(results_formatted[0], cell_type, 100.0)
-    predloss_1000 = get_res_stratified(results_formatted[0], cell_type, 1000.0)
-    predloss_10000 = get_res_stratified(results_formatted[0], cell_type, 10000.0)
+    predloss = get_res_stratified(results_formatted[0], cell_type)
 
-    nullloss_10 = get_res_stratified(results_formatted[1], cell_type, 10.0)
+
+    nullloss = get_res_stratified(results_formatted[1], cell_type)
     nullloss_100 = get_res_stratified(results_formatted[1], cell_type, 100.0)
     nullloss_1000 = get_res_stratified(results_formatted[1], cell_type, 1000.0)
     nullloss_10000 = get_res_stratified(results_formatted[1], cell_type, 10000.0)
