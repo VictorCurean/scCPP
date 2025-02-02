@@ -1,3 +1,6 @@
+import torch
+import torch.nn as nn
+
 class MLPModel(nn.Module):
     def __init__(self, config):
         super(MLPModel, self).__init__()
@@ -6,8 +9,8 @@ class MLPModel(nn.Module):
         self.hidden_layers = config['model_params']['mlp_hidden_dims']
         dropout = config['model_params']['dropout']
 
-        # Combined input: cell + drug + dose
-        combined_dim = input_dim + drug_dim  # 1280 + 256 + 1
+        # Combined input: cell + drug
+        combined_dim = input_dim + drug_dim 
 
         # Build hidden layers dynamically
         layers = []

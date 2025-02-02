@@ -28,23 +28,21 @@ def loss_fn(pred, target, control):
     # L1 loss (primary term)
     l1_loss = F.l1_loss(pred, target)
     
-    # Non-negative contrastive loss
-    contrastive_loss = 1 - F.cosine_similarity(pred, control).mean()
+    pred_dir = pred - control
+    target_dir = target - control
+    cos_loss = 1 - F.cosine_similarity(pred_dir, target_dir).mean()
     
-    # Directional alignment (always ≥0)
-    movement_loss = F.mse_loss(pred - control, target - control)
-    
-    return l1_loss + 0.2*contrastive_loss + 0.1*movement_loss
+    return l1_loss + 0.3 * cos_loss
 
 
 class FiLMModelEvaluator():
 
-    def __init__(self, config_path, sciplex_dataset_train, sciplex_dataset_validation, sciplex_dataset_test):
+    def __init__(self, config_path, model, sciplex_dataset_train, sciplex_dataset_validation, sciplex_dataset_test):
         # load config file
         self.__read_config(config_path)
 
         #prepare model
-        self.__prepare_model()
+        self.__prepare_model(model)
 
         self.sciplex_loader_train = DataLoader(sciplex_dataset_train,
                                                batch_size=self.config['train_params']['batch_size'],
@@ -70,9 +68,9 @@ class FiLMModelEvaluator():
 
 
 
-    def __prepare_model(self):
+    def __prepare_model(self, model):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model = FiLMModel(self.config)
+        self.model = model(self.config)
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr=self.config['train_params']['lr'],
                                     weight_decay=self.config['train_params']['weight_decay'])
@@ -139,7 +137,7 @@ class FiLMModelEvaluator():
                             output_validation = self.model(control_emb, drug_emb)
 
                             # Compute loss
-                            validation_loss = self.criterion(output_validation, treated_emb)
+                            validation_loss = loss_fn(output_validation, treated_emb, control_emb)
 
                             # Track validation loss
                             validation_losses.append(validation_loss.item())

@@ -10,27 +10,27 @@ class FiLM(nn.Module):
 
         # More robust conditioning network with regularization
         self.gamma = nn.Sequential(
-            nn.Linear(condition_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.ReLU(),
+            nn.Linear(condition_dim, 512),
+            nn.LayerNorm(512),
+            nn.GELU(),
             nn.Dropout(config['model_params']['dropout']),
-            nn.Linear(hidden_dim, hidden_dim)
+            nn.Linear(512, hidden_dim)
         )
-        self.beta = nn.Sequential(
-            nn.Linear(condition_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(config['model_params']['dropout']),
-            nn.Linear(hidden_dim, hidden_dim)
-        )
+        # self.beta = nn.Sequential(
+        #     nn.Linear(condition_dim, hidden_dim),
+        #     nn.LayerNorm(hidden_dim),
+        #     nn.GELU(),
+        #     nn.Dropout(config['model_params']['dropout']),
+        #     nn.Linear(hidden_dim, hidden_dim)
+        # )
 
         # Initialize for stable L1 optimization
         nn.init.uniform_(self.gamma[-1].weight, 0.9, 1.1)  # Start near identity
-        nn.init.normal_(self.beta[-1].weight, 0, 0.1)      # Small initial shifts
+        # nn.init.normal_(self.beta[-1].weight, 0, 0.1)      # Small initial shifts
 
     def forward(self, x, condition):
-        condition = torch.cat([condition], dim=-1)
-        return self.gamma(condition) * x + self.beta(condition)
+        #condition = torch.cat([condition], dim=-1)
+        return self.gamma(condition) * x #+ self.beta(condition)
 
 
 class FiLMModel(nn.Module):
@@ -43,11 +43,11 @@ class FiLMModel(nn.Module):
         self.input_proj = nn.Sequential(
             nn.Linear(input_dim, 512),
             nn.LayerNorm(512),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Dropout(config['model_params']['dropout']),
             nn.Linear(512, hidden_dim),
             nn.LayerNorm(hidden_dim),
-            nn.ReLU()
+            nn.GELU()
         )
 
         # FiLM modulation layers
@@ -55,7 +55,7 @@ class FiLMModel(nn.Module):
             nn.Sequential(
                 FiLM(config),
                 nn.LayerNorm(hidden_dim),
-                nn.ReLU()
+                nn.GELU()
             ) for _ in range(config['model_params']['num_layers'])
         ])
 
@@ -63,7 +63,7 @@ class FiLMModel(nn.Module):
         self.output_proj = nn.Sequential(
             nn.Linear(hidden_dim, 512),
             nn.LayerNorm(512),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Dropout(config['model_params']['dropout']),
             nn.Linear(512, input_dim)
         )
@@ -72,13 +72,14 @@ class FiLMModel(nn.Module):
         # Progressive input projection
         x = self.input_proj(input)
 
-        # Residual FiLM modulation
         for film_block in self.film_layers:
             residual = x
-            x = film_block[0](x, condition)
-            x = film_block[1](x)  # BatchNorm
+            # Correct order: FiLM → Residual → LayerNorm → ReLU
+            x = film_block[0](x, condition) 
+            x = x + residual
+            x = film_block[1](x)  # LayerNorm after residual
             x = film_block[2](x)  # ReLU
-            x = x + residual  # Preserve information
+        return self.output_proj(x)
 
         # Gradual output reconstruction
         return self.output_proj(x)
