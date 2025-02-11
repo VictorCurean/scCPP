@@ -16,21 +16,21 @@ class FiLM(nn.Module):
             nn.Dropout(config['model_params']['dropout']),
             nn.Linear(512, hidden_dim)
         )
-        # self.beta = nn.Sequential(
-        #     nn.Linear(condition_dim, hidden_dim),
-        #     nn.LayerNorm(hidden_dim),
-        #     nn.GELU(),
-        #     nn.Dropout(config['model_params']['dropout']),
-        #     nn.Linear(hidden_dim, hidden_dim)
-        # )
+        self.beta = nn.Sequential(
+            nn.Linear(condition_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(config['model_params']['dropout']),
+            nn.Linear(hidden_dim, hidden_dim)
+        )
 
-        # Initialize for stable L1 optimization
+        #Initialize for stable L1 optimization
         nn.init.uniform_(self.gamma[-1].weight, 0.9, 1.1)  # Start near identity
-        # nn.init.normal_(self.beta[-1].weight, 0, 0.1)      # Small initial shifts
+        nn.init.normal_(self.beta[-1].weight, 0, 0.1)      # Small initial shifts
 
     def forward(self, x, condition):
         #condition = torch.cat([condition], dim=-1)
-        return self.gamma(condition) * x #+ self.beta(condition)
+        return self.gamma(condition) * x + self.beta(condition)
 
 
 class FiLMModel(nn.Module):
@@ -75,7 +75,7 @@ class FiLMModel(nn.Module):
         for film_block in self.film_layers:
             residual = x
             # Correct order: FiLM → Residual → LayerNorm → ReLU
-            x = film_block[0](x, condition) 
+            x = film_block[0](x, condition)
             x = x + residual
             x = film_block[1](x)  # LayerNorm after residual
             x = film_block[2](x)  # ReLU

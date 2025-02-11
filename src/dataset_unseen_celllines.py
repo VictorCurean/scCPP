@@ -11,7 +11,7 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
-class SciplexDatasetUnseenPerturbations(Dataset):
+class SciplexDatasetUnseenCellLines(Dataset):
     def __init__(self, adata_file, cell_lines, dose, n_match=1, pct_treatement_negative=0, pct_dosage_negative=0):
         self.SEP = "_"
         self.cell_lines = cell_lines
@@ -24,8 +24,6 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         self.adata = ad.read_h5ad(adata_file)
         self.data_processed = list()
         self.__match_control_to_treated()
-        self.add_treatement_negative()
-        self.add_dosage_negative()
 
     def __len__(self):
         # Return the number of samples
@@ -54,7 +52,7 @@ class SciplexDatasetUnseenPerturbations(Dataset):
             if cell_meta['product_name'] == 'Vehicle':
                 continue
 
-            if cell_meta['cell_line'] not in self.cell_lines:
+            if cell_meta['cell_type'] not in self.cell_lines:
                 continue
 
             if cell_meta['dose'] != self.dose:

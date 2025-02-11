@@ -22,7 +22,8 @@ from sklearn.model_selection import train_test_split
 import torch.nn.functional as F
 
 from model import FiLMModel
-from dataset import SciplexDatasetUnseenPerturbations
+# from dataset_unseen_compounds import SciplexDatasetUnseenPerturbations
+# from dataset_unseen_celllines import SciplexDatasetUnseenCellLines
 
 def loss_fn(pred, target, control):
     # L1 loss (primary term)
