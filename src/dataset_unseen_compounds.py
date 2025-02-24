@@ -32,14 +32,7 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         return len(self.data_processed)
 
     def __match_control_to_treated(self):
-        #np.random.seed(self.seed)
         adata = self.adata
-
-        # #scale values
-        # print("Scaling vals..")
-        # scaler = MinMaxScaler(feature_range=(-1, 1))
-        # X_scaled = scaler.fit_transform(adata.X)
-        # adata.X = X_scaled
 
         control_A549 = adata[(adata.obs['cell_type'] == "A549") & (adata.obs['product_name'] == "Vehicle")].X
         control_K562 = adata[ (adata.obs['cell_type'] == "K562") & (adata.obs['product_name'] == "Vehicle")].X
