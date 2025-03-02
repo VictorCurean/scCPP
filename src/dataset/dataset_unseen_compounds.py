@@ -12,11 +12,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
 class SciplexDatasetUnseenPerturbations(Dataset):
-    def __init__(self, adata_file, drug_list, n_match=1, pct_treatement_negative=0,
-                 pct_dosage_negative=0, sm_emb_column, sm_emb_dim, input_type, output_type, scfm_obsm_name):
+    def __init__(self, adata_file, drug_list, pct_treatement_negative,
+                 pct_dosage_negative, sm_emb_column, sm_emb_dim, input_type, output_type, scfm_obsm_name):
         self.SEP = "_"
         self.drug_list = drug_list
-        self.n_match = n_match  #how many control matches per invididual pertrubed cell for a given condition
         self.pct_treatement_negative = pct_treatement_negative # percentage of treatement negative i.e. drug emb set to zero
         self.pct_dosage_negative = pct_dosage_negative # percentage of dosage negative i.e. dosage set to zero
         self.sm_emb_dim = sm_emb_dim # dimension of the drug embedding used
