@@ -1,8 +1,5 @@
 import yaml
 import seaborn as sns
-import pandas as pd
-from tqdm import tqdm
-import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
@@ -10,20 +7,10 @@ import matplotlib.pyplot as plt
 
 import torch
 import pandas as pd
-import pickle as pkl
-from torch.utils.data import Dataset
-import random
 import numpy as np
-import math
-import anndata as ad
-import ast
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
 import torch.nn.functional as F
 
-from model import FiLMModel
-# from dataset_unseen_compounds import SciplexDatasetUnseenPerturbations
-# from dataset_unseen_celllines import SciplexDatasetUnseenCellLines
 
 def loss_fn(pred, target, control):
     # L1 loss (primary term)
@@ -71,11 +58,11 @@ class FiLMModelEvaluator():
 
     def __prepare_model(self, model):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
         self.model = model(self.config)
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr=self.config['train_params']['lr'],
                                     weight_decay=self.config['train_params']['weight_decay'])
-        self.criterion = nn.L1Loss()
 
         self.model = self.model.to(self.device)
 
@@ -93,21 +80,25 @@ class FiLMModelEvaluator():
         for epoch in range(num_epochs):
             print(f"Epoch {epoch + 1}/{num_epochs}")
 
-            for control_emb, drug_emb, treated_emb, meta in self.sciplex_loader_train:
+            for control, drug_emb, target, dose, meta in self.sciplex_loader_train:
                 # Move tensors to the specified device
-                control_emb = control_emb.to(device)
+                control = control.to(device)
                 drug_emb = drug_emb.to(device)
-                treated_emb = treated_emb.to(device)
+                dose = dose.to(device)
+                target = target.to(device)
+
+                #multiply dose with drug emb
+                drug_emb_dose_adjusted = drug_emb * np.log10(dose + 1)
 
                 # Zero the gradients
                 self.optimizer.zero_grad()
 
                 # Forward pass through the model
-                output = self.model(control_emb, drug_emb)
+                output = self.model(control, drug_emb_dose_adjusted)
 
                 # Compute the loss
                 #loss = self.criterion(output, treated_emb)
-                loss = loss_fn(output, treated_emb, control_emb)
+                loss = loss_fn(output, target, control)
 
                 # Backpropagation
                 loss.backward()
@@ -127,18 +118,21 @@ class FiLMModelEvaluator():
 
                     validation_losses = list()
                     with torch.no_grad():
-                        for control_emb, drug_emb, treated_emb, meta in self.sciplex_loader_validation:
-                            control_emb, drug_emb, treated_emb = (
-                                control_emb.to(device),
+                        for control, drug_emb, target, dose, meta in self.sciplex_loader_validation:
+                            control, drug_emb, target, dose = (
+                                control.to(device),
                                 drug_emb.to(device),
-                                treated_emb.to(device),
+                                target.to(device),
+                                dose.to(device)
                             )
 
+                            drug_emb_dose_adjusted = drug_emb * log10(dose+1)
+
                             # Forward pass
-                            output_validation = self.model(control_emb, drug_emb)
+                            output_validation = self.model(control, drug_emb_dose_adjusted)
 
                             # Compute loss
-                            validation_loss = loss_fn(output_validation, treated_emb, control_emb)
+                            validation_loss = loss_fn(output_validation, target, control)
 
                             # Track validation loss
                             validation_losses.append(validation_loss.item())
@@ -166,23 +160,27 @@ class FiLMModelEvaluator():
         self.trained_model.eval()  # Set the model to evaluation mode
 
         with torch.no_grad():  # Disable gradient computation
-            for control_emb, drug_emb, treated_emb, meta in tqdm(self.sciplex_loader_test):
+            for control, drug_emb, target, dose, meta in tqdm(self.sciplex_loader_test):
                 # Move tensors to the specified device
-                control_emb = control_emb.to(self.device)
+                control = control.to(self.device)
                 drug_emb = drug_emb.to(self.device)
-                treated_emb = treated_emb.to(self.device)
+                target = target.to(self.device)
+                dose = dose.to(self.device)
+
+                drug_emb_dose_adjusted = drug_emb * log10(dose+1)
 
                 # Forward pass through the model
-                output = self.trained_model(control_emb, drug_emb)
+                output = self.trained_model(control, drug_emb_dose_adjusted)
 
                 # Convert tensors to lists of NumPy arrays for DataFrame compatibility
-                control_emb_list = [x.cpu().numpy() for x in torch.unbind(control_emb, dim=0)]
-                treated_emb_list = [x.cpu().numpy() for x in torch.unbind(treated_emb, dim=0)]
+                control_emb_list = [x.cpu().numpy() for x in torch.unbind(control, dim=0)]
+                treated_emb_list = [x.cpu().numpy() for x in torch.unbind(target, dim=0)]
                 output_list = [x.cpu().numpy() for x in torch.unbind(output, dim=0)]
 
                 # Meta information
                 compounds = meta['compound']
                 cell_types = meta['cell_type']
+                doses = meta['dose']
 
                 # Append results to lists
                 control_embeddings.extend(control_emb_list)
@@ -229,16 +227,6 @@ class FiLMModelEvaluator():
             raise ValueError(f"Unsupported file format: {file_extension}")
 
         print(f"Results saved to {save_path}.")
-
-    def plot_training_loss(self):
-        plt.figure(figsize=(8, 6))
-        index_losses = list(range(len(self.losses_train)))
-        sns.lineplot(x=index_losses, y=self.losses_train)
-        plt.ylabel("MAE")
-        plt.xlabel("Iteration")
-        plt.title("Train Loss")
-        plt.show()
-
 
     def get_test_results(self):
         return self.test_results

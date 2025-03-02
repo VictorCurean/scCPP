@@ -19,7 +19,7 @@ class MLPModel(nn.Module):
             layers.extend([
                 nn.Linear(in_features, hidden_dim),
                 nn.LayerNorm(hidden_dim),
-                nn.ReLU(),
+                nn.GELU(),
                 nn.Dropout(dropout)
             ])
             in_features = hidden_dim
