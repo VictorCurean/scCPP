@@ -34,7 +34,7 @@ def format_test_results(test_results_raw):
     return test_results_formatted
 
 
-def get_model_stats(formatted_test_results):
+def get_edistance_stats(formatted_test_results):
     """
     Calculate test results statistics
     """
@@ -104,30 +104,33 @@ def plot_results(results_formatted, cell_type):
 
     plt.show()
 
-def get_model_performance(formatted_test_results):
+def get_model_performance(formatted_test_results, dist_func):
     """
     Calculate R2 of model
     """
 
-    r2_values = dict()
+    results = dict()
+    stdevs = dict()
 
     for cell_type in formatted_test_results['cell_type'].unique():
         losses = list()
 
         df_subset = formatted_test_results[formatted_test_results['cell_type'] == cell_type]
 
-        r2_per_cell = list()
+        results_per_cell = list()
+
         for row in df_subset.iterrows():
 
             emb_pert = np.array(row['pert_emb'].to_list())
             emb_pred = np.array(row['pred_emb'].to_list())
             print(emb_pert)
             
-            r2 = r2_score(emb_pert, emb_pred)
+            dist = dist_func(emb_pert, emb_pred)
 
-            r2_per_cell.append(r2)
+            results_per_cell.append(dist)
 
-        r2_values[cell_type] = np.mean(r2_per_cell)
+        results[cell_type] = np.mean(results_per_cell)
+        stdevs[cell_type] = np.std(results_per_cell)
 
-    return r2_values
+    return results, stdevs
         
