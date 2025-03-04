@@ -60,9 +60,9 @@ class SciplexDatasetUnseenPerturbations(Dataset):
 
             #use preferred cell representation vector
 
-            if self.input_type == "gene_expression":
+            if self.output_type == "gene_expression":
                 cell_vector = adata.X[idx]
-            elif self.input_type == "scfm_embedding":
+            elif self.output_type == "scfm_embedding":
                 cell_vector = adata.obsm[self.scfm_obsm_name][idx]
 
 
