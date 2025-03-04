@@ -9,12 +9,10 @@ import anndata as ad
 import ast
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
 
 class SciplexDatasetUnseenPerturbations(Dataset):
     def __init__(self, adata_file, drug_list, pct_treatement_negative,
                  pct_dosage_negative, sm_emb_column, sm_emb_dim, input_type, output_type, scfm_obsm_name):
-        self.SEP = "_"
         self.drug_list = drug_list
         self.pct_treatement_negative = pct_treatement_negative # percentage of treatement negative i.e. drug emb set to zero
         self.pct_dosage_negative = pct_dosage_negative # percentage of dosage negative i.e. dosage set to zero
