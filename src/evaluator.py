@@ -83,12 +83,9 @@ class FiLMModelEvaluator():
             for control, drug_emb, target, dose, meta in self.sciplex_loader_train:
                 # Move tensors to the specified device
                 control = control.to(device)
-                drug_emb = drug_emb.to(device)
-                dose = dose.to(device)
+                drug_emb_dose_adjusted = drug_emb * np.log10(dose + 1)
+                drug_emb_dose_adjusted = drug_emb_dose_adjusted.to(device)
                 target = target.to(device)
-
-                #multiply dose with drug emb
-                drug_emb_dose_adjusted = drug_emb * torch.log10(dose + 1)
 
                 # Zero the gradients
                 self.optimizer.zero_grad()
@@ -119,14 +116,14 @@ class FiLMModelEvaluator():
                     validation_losses = list()
                     with torch.no_grad():
                         for control, drug_emb, target, dose, meta in self.sciplex_loader_validation:
-                            control, drug_emb, target, dose = (
+                            drug_emb_dose_adjusted = drug_emb * np.log10(dose + 1)
+
+                            control, drug_emb_dose_adjusted, target = (
                                 control.to(device),
-                                drug_emb.to(device),
-                                target.to(device),
-                                dose.to(device)
+                                drug_emb_dose_adjusted.to(device),
+                                target.to(device)
                             )
 
-                            drug_emb_dose_adjusted = drug_emb * torch.log10(dose+1)
 
                             # Forward pass
                             output_validation = self.model(control, drug_emb_dose_adjusted)
@@ -163,11 +160,9 @@ class FiLMModelEvaluator():
             for control, drug_emb, target, dose, meta in tqdm(self.sciplex_loader_test):
                 # Move tensors to the specified device
                 control = control.to(self.device)
-                drug_emb = drug_emb.to(self.device)
+                drug_emb_dose_adjusted = drug_emb * np.log10(dose+1)
+                drug_emb_dose_adjusted = drug_emb_dose_adjusted.to(self.device)
                 target = target.to(self.device)
-                dose = dose.to(self.device)
-
-                drug_emb_dose_adjusted = drug_emb * torch.log10(dose+1)
 
                 # Forward pass through the model
                 output = self.trained_model(control, drug_emb_dose_adjusted)
