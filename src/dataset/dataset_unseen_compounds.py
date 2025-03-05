@@ -61,7 +61,7 @@ class SciplexDatasetUnseenPerturbations(Dataset):
             matched_control = control_pool[random_row_idx]
 
             #get drug embedding
-            drug_emb = ast.literal_eval(cell_meta[sm_emb_column])
+            drug_emb = ast.literal_eval(cell_meta[self.sm_emb_column])
 
             #get dose
             dose = float(cell_meta['dose'])
