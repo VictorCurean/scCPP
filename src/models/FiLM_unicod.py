@@ -24,9 +24,9 @@ class FiLM(nn.Module):
             nn.Linear(latent_dim, latent_dim)
         )
 
-        # #Initialize for stable L1 optimization
-        # nn.init.uniform_(self.gamma[-1].weight, 0.9, 1.1)  # Start near identity
-        # nn.init.normal_(self.beta[-1].weight, 0, 0.1)      # Small initial shifts
+        #Initialize for stable L1 optimization
+        nn.init.uniform_(self.gamma[-1].weight, 0.9, 1.1)  # Start near identity
+        nn.init.normal_(self.beta[-1].weight, 0, 0.1)      # Small initial shifts
 
     def forward(self, control_cell, drug_emb):
         #condition = torch.cat([condition], dim=-1)
@@ -79,7 +79,7 @@ class FiLMModel(nn.Module):
             x = film_block[0](x, drug_emb)
             x = x + residual
             x = film_block[1](x)  # LayerNorm after residual
-            x = film_block[2](x)  # ReLU
+            x = film_block[2](x)  # GELU
         return self.output_proj(x)
 
         # Gradual output reconstruction
