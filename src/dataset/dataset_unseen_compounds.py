@@ -56,34 +56,32 @@ class SciplexDatasetUnseenPerturbations(Dataset):
             else:
                 raise ValueError(f"Unknown cell type: {cell_meta['cell_type']}")
 
-            for i in range(self.n_match):
+            # Randomly select a control cell from the relevant pool
+            random_row_idx = np.random.choice(control_pool.shape[0])
+            matched_control = control_pool[random_row_idx]
 
-                # Randomly select a control cell from the relevant pool
-                random_row_idx = np.random.choice(control_pool.shape[0])
-                matched_control = control_pool[random_row_idx]
+            #get drug embedding
+            drug_emb = ast.literal_eval(cell_meta[sm_emb_column])
 
-                #get drug embedding
-                drug_emb = ast.literal_eval(cell_meta[sm_emb_column])
+            #get dose
+            dose = float(cell_meta['dose'])
 
-                #get dose
-                dose = float(cell_meta['dose'])
-
-                #metadata
-                meta = dict()
-                meta['compound'] = cell_meta['product_name']
-                meta['cell_type'] = cell_meta['cell_type']
-                meta['dose'] = float(cell_meta['dose'])
+            #metadata
+            meta = dict()
+            meta['compound'] = cell_meta['product_name']
+            meta['cell_type'] = cell_meta['cell_type']
+            meta['dose'] = float(cell_meta['dose'])
 
 
-                # Store the treated and matched control metadata
-                data_list.append({
-                    "idx": idx,
-                    "treated_emb": torch.tensor(cell_vector, dtype=torch.float),
-                    "matched_control_emb": torch.tensor(matched_control, dtype=torch.float),
-                    "drug_emb": torch.tensor(drug_emb, dtype=torch.float),
-                    "dose": dose,
-                    "meta": meta
-                })
+            # Store the treated and matched control metadata
+            data_list.append({
+                "idx": idx,
+                "treated_emb": torch.tensor(cell_vector, dtype=torch.float),
+                "matched_control_emb": torch.tensor(matched_control, dtype=torch.float),
+                "drug_emb": torch.tensor(drug_emb, dtype=torch.float),
+                "dose": dose,
+                "meta": meta
+            })
 
         self.data_processed = data_list
 
