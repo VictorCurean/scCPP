@@ -66,6 +66,9 @@ class SciplexDatasetUnseenPerturbations(Dataset):
             #get dose
             dose = float(cell_meta['dose'])
 
+            #multiply drug emb with does with the dose
+            drug_emb = drug_emb * np.log10(1+dose)
+
             #metadata
             meta = dict()
             meta['compound'] = cell_meta['product_name']
@@ -92,7 +95,6 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         control_emb = val['matched_control_emb']
         drug_emb = val['drug_emb']
         treated_emb = val['treated_emb']
-        dose = val['dose']
         meta = val['meta']
 
-        return control_emb, drug_emb, treated_emb, dose, meta
+        return control_emb, drug_emb, treated_emb, meta

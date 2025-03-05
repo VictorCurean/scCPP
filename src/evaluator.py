@@ -80,18 +80,17 @@ class FiLMModelEvaluator():
         for epoch in range(num_epochs):
             print(f"Epoch {epoch + 1}/{num_epochs}")
 
-            for control, drug_emb, target, dose, meta in self.sciplex_loader_train:
+            for control, drug_emb, target, meta in self.sciplex_loader_train:
                 # Move tensors to the specified device
                 control = control.to(device)
-                drug_emb_dose_adjusted = drug_emb * np.log10(dose + 1)
-                drug_emb_dose_adjusted = drug_emb_dose_adjusted.to(device)
+                drug_emb = drug_emb.to(device)
                 target = target.to(device)
 
                 # Zero the gradients
                 self.optimizer.zero_grad()
 
                 # Forward pass through the model
-                output = self.model(control, drug_emb_dose_adjusted)
+                output = self.model(control, drug_emb)
 
                 # Compute the loss
                 #loss = self.criterion(output, treated_emb)
@@ -115,18 +114,17 @@ class FiLMModelEvaluator():
 
                     validation_losses = list()
                     with torch.no_grad():
-                        for control, drug_emb, target, dose, meta in self.sciplex_loader_validation:
-                            drug_emb_dose_adjusted = drug_emb * np.log10(dose + 1)
+                        for control, drug_emb, target, meta in self.sciplex_loader_validation:
 
-                            control, drug_emb_dose_adjusted, target = (
+                            control, drug_emb, target = (
                                 control.to(device),
-                                drug_emb_dose_adjusted.to(device),
+                                drug_emb.to(device),
                                 target.to(device)
                             )
 
 
                             # Forward pass
-                            output_validation = self.model(control, drug_emb_dose_adjusted)
+                            output_validation = self.model(control, drug_emb)
 
                             # Compute loss
                             validation_loss = loss_fn(output_validation, target, control)
@@ -157,15 +155,14 @@ class FiLMModelEvaluator():
         self.trained_model.eval()  # Set the model to evaluation mode
 
         with torch.no_grad():  # Disable gradient computation
-            for control, drug_emb, target, dose, meta in tqdm(self.sciplex_loader_test):
+            for control, drug_emb, target, meta in tqdm(self.sciplex_loader_test):
                 # Move tensors to the specified device
                 control = control.to(self.device)
-                drug_emb_dose_adjusted = drug_emb * np.log10(dose+1)
-                drug_emb_dose_adjusted = drug_emb_dose_adjusted.to(self.device)
+                drug_emb = drug_emb.to(self.device)
                 target = target.to(self.device)
 
                 # Forward pass through the model
-                output = self.trained_model(control, drug_emb_dose_adjusted)
+                output = self.trained_model(control, drug_emb)
 
                 # Convert tensors to lists of NumPy arrays for DataFrame compatibility
                 control_emb_list = [x.cpu().numpy() for x in torch.unbind(control, dim=0)]
