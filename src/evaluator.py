@@ -88,7 +88,7 @@ class FiLMModelEvaluator():
                 target = target.to(device)
 
                 #multiply dose with drug emb
-                drug_emb_dose_adjusted = drug_emb * np.log10(dose + 1)
+                drug_emb_dose_adjusted = drug_emb * torch.log10(dose + 1)
 
                 # Zero the gradients
                 self.optimizer.zero_grad()
@@ -126,7 +126,7 @@ class FiLMModelEvaluator():
                                 dose.to(device)
                             )
 
-                            drug_emb_dose_adjusted = drug_emb * log10(dose+1)
+                            drug_emb_dose_adjusted = drug_emb * torch.log10(dose+1)
 
                             # Forward pass
                             output_validation = self.model(control, drug_emb_dose_adjusted)
@@ -167,7 +167,7 @@ class FiLMModelEvaluator():
                 target = target.to(self.device)
                 dose = dose.to(self.device)
 
-                drug_emb_dose_adjusted = drug_emb * log10(dose+1)
+                drug_emb_dose_adjusted = drug_emb * torch.log10(dose+1)
 
                 # Forward pass through the model
                 output = self.trained_model(control, drug_emb_dose_adjusted)
