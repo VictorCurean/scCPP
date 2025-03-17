@@ -82,7 +82,6 @@ class SciplexDatasetUnseenPerturbations(Dataset):
                 "treated_emb": torch.tensor(cell_vector, dtype=torch.float),
                 "matched_control_emb": torch.tensor(matched_control, dtype=torch.float),
                 "drug_emb": torch.tensor(drug_emb, dtype=torch.float),
-                "dose": dose,
                 "meta": meta
             })
 
@@ -96,6 +95,5 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         drug_emb = val['drug_emb']
         treated_emb = val['treated_emb']
         meta = val['meta']
-        dose = val['dose']
 
-        return control_emb, drug_emb, treated_emb, meta, dose
+        return control_emb, drug_emb, treated_emb, meta
