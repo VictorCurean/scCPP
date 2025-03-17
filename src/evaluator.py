@@ -181,7 +181,7 @@ class FiLMModelEvaluator():
                 model_output.extend(output_list)
                 compounds_list.extend(compounds)
                 cell_types_list.extend(cell_types)
-                doses_list.extedn(doses)
+                doses_list.extend(doses)
 
         # Save results into a DataFrame
         self.test_results = pd.DataFrame({
