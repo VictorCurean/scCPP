@@ -151,6 +151,7 @@ class FiLMModelEvaluator():
         model_output = []
         compounds_list = []
         cell_types_list = []
+        doses_list = []
 
         self.trained_model.eval()  # Set the model to evaluation mode
 
@@ -180,6 +181,7 @@ class FiLMModelEvaluator():
                 model_output.extend(output_list)
                 compounds_list.extend(compounds)
                 cell_types_list.extend(cell_types)
+                doses_list.extedn(doses)
 
         # Save results into a DataFrame
         self.test_results = pd.DataFrame({
@@ -188,6 +190,7 @@ class FiLMModelEvaluator():
             "pred_emb": model_output,
             "compound": compounds_list,
             "cell_type": cell_types_list,
+            "dose": doses_list
         })
 
         print("Testing completed. Results stored in 'self.test_results'.")
