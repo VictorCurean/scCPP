@@ -86,6 +86,9 @@ class SciplexDatasetUnseenPerturbations(Dataset):
                 "meta": meta
             })
 
+            print(type(dose))
+            print(type(meta['dose']))
+
         self.data_processed = data_list
 
     def __getitem__(self, idx):
