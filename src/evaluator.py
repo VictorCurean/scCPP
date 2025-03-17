@@ -80,7 +80,7 @@ class FiLMModelEvaluator():
         for epoch in range(num_epochs):
             print(f"Epoch {epoch + 1}/{num_epochs}")
 
-            for control, drug_emb, target, meta in self.sciplex_loader_train:
+            for control, drug_emb, target, meta, dose in self.sciplex_loader_train:
                 # Move tensors to the specified device
                 control = control.to(device)
                 drug_emb = drug_emb.to(device)
@@ -114,7 +114,7 @@ class FiLMModelEvaluator():
 
                     validation_losses = list()
                     with torch.no_grad():
-                        for control, drug_emb, target, meta in self.sciplex_loader_validation:
+                        for control, drug_emb, target, meta, dose in self.sciplex_loader_validation:
 
                             control, drug_emb, target = (
                                 control.to(device),
@@ -156,7 +156,7 @@ class FiLMModelEvaluator():
         self.trained_model.eval()  # Set the model to evaluation mode
 
         with torch.no_grad():  # Disable gradient computation
-            for control, drug_emb, target, meta in tqdm(self.sciplex_loader_test):
+            for control, drug_emb, target, meta, dose in tqdm(self.sciplex_loader_test):
                 # Move tensors to the specified device
                 control = control.to(self.device)
                 drug_emb = drug_emb.to(self.device)
@@ -173,7 +173,7 @@ class FiLMModelEvaluator():
                 # Meta information
                 compounds = meta['compound']
                 cell_types = meta['cell_type']
-                doses = meta['dose']
+                doses = dose
 
                 # Append results to lists
                 control_embeddings.extend(control_emb_list)

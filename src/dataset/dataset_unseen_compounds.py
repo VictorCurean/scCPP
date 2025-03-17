@@ -96,7 +96,6 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         drug_emb = val['drug_emb']
         treated_emb = val['treated_emb']
         meta = val['meta']
+        dose = val['dose']
 
-        print(meta['dose'])
-
-        return control_emb, drug_emb, treated_emb, meta
+        return control_emb, drug_emb, treated_emb, meta, dose
