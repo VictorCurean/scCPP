@@ -11,14 +11,14 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 
 class SciplexDatasetUnseenPerturbations(Dataset):
-    def __init__(self, adata_file, drug_list, sm_emb_column, sm_emb_dim, input_type, output_type):
+    def __init__(self, adata, drug_list, sm_emb_column, sm_emb_dim, input_type, output_type):
         self.drug_list = drug_list
         self.sm_emb_dim = sm_emb_dim # dimension of the drug embedding used
         self.sm_emb_column = sm_emb_column #column of the sm_emb used
         self.input_type = input_type # type of input (gene expression / scFM embedding)
         self.output_type = output_type # type of output (gene expression / scFM embedding / pathway activation)
 
-        self.adata = ad.read_h5ad(adata_file)
+        self.adata = adata
         self.data_processed = list()
         self.__match_control_to_treated()
 
@@ -27,16 +27,10 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         return len(self.data_processed)
 
     def __match_control_to_treated(self):
-        adata = self.adata
-
-        control_A549 = adata[(adata.obs['cell_type'] == "A549") & (adata.obs['product_name'] == "Vehicle")].obsm[self.input_type]
-        control_K562 = adata[ (adata.obs['cell_type'] == "K562") & (adata.obs['product_name'] == "Vehicle")].obsm[self.input_type]
-        control_MCF7 = adata[ (adata.obs['cell_type'] == "MCF7") & (adata.obs['product_name'] == "Vehicle")].obsm[self.input_type]
-
         data_list = list() #list of dict object
 
-        for idx in tqdm(range(adata.n_obs)):
-            cell_meta = adata.obs.iloc[idx]
+        for idx in tqdm(list(self.adata.obs_names)):
+            cell_meta = self.adata.obs.loc[idx]
 
             if cell_meta['product_name'] == 'Vehicle':
                 continue
@@ -44,21 +38,10 @@ class SciplexDatasetUnseenPerturbations(Dataset):
             if cell_meta['product_name'] not in self.drug_list:
                 continue
 
-            cell_vector = adata.obsm[self.output_type][idx]
+            cell_vector = self.adata.obsm[self.output_type].loc[idx]
+            matched_control_index = cell_meta['match_index']
 
-            matched_control = None
-            if cell_meta['cell_type'] == "A549":
-                control_pool = control_A549
-            elif cell_meta['cell_type'] == "K562":
-                control_pool = control_K562
-            elif cell_meta['cell_type'] == "MCF7":
-                control_pool = control_MCF7
-            else:
-                raise ValueError(f"Unknown cell type: {cell_meta['cell_type']}")
-
-            # Randomly select a control cell from the relevant pool
-            random_row_idx = np.random.choice(control_pool.shape[0])
-            matched_control = control_pool[random_row_idx]
+            matched_control = self.adata.obsm[self.input_type].loc[matched_control_index]
 
             #get drug embedding
             drug_emb = ast.literal_eval(cell_meta[self.sm_emb_column])
