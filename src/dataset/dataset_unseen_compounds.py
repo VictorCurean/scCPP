@@ -41,7 +41,9 @@ class SciplexDatasetUnseenPerturbations(Dataset):
             cell_vector = self.adata.obsm[self.output_type].loc[idx]
             matched_control_index = cell_meta['match_index']
 
-            matched_control = self.adata.obsm[self.input_type].loc[matched_control_index]
+            idx_position = self.adata.obs.index.get_loc(matched_control_index)
+
+            matched_control = self.adata.obsm[self.input_type][idx_position]
 
             #get drug embedding
             drug_emb = ast.literal_eval(cell_meta[self.sm_emb_column])
