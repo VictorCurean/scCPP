@@ -12,7 +12,7 @@ from tqdm import tqdm
 import torch.nn.functional as F
 
 
-def loss_fn(pred, target, control):
+def loss_fn_custom(pred, target, control):
     # L1 loss (primary term)
     l1_loss = F.l1_loss(pred, target)
     
@@ -21,6 +21,10 @@ def loss_fn(pred, target, control):
     cos_loss = 1 - F.cosine_similarity(pred_dir, target_dir).mean()
     
     return l1_loss + 0.3 * cos_loss
+
+def l2_loss((pred, target, control):
+    rmse = nn.MSELoss()
+    return rmse(pred, target)
 
 
 class FiLMModelEvaluator():
@@ -76,6 +80,8 @@ class FiLMModelEvaluator():
 
         iteration = 0
         every_n = 10
+
+        loss_fn = l2_loss
 
         for epoch in range(num_epochs):
             print(f"Epoch {epoch + 1}/{num_epochs}")
