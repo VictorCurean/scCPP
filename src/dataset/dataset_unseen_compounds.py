@@ -30,6 +30,7 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         data_list = list() #list of dict object
 
         for idx in tqdm(list(self.adata.obs_names)):
+
             cell_meta = self.adata.obs.loc[idx]
 
             if cell_meta['product_name'] == 'Vehicle':
@@ -38,12 +39,12 @@ class SciplexDatasetUnseenPerturbations(Dataset):
             if cell_meta['product_name'] not in self.drug_list:
                 continue
 
-            cell_vector = self.adata.obsm[self.output_type].loc[idx]
+            idx_position = self.adata.obs.index.get_loc(idx)
+            cell_vector = self.adata.obsm[self.output_type][idx_position]
+
             matched_control_index = cell_meta['match_index']
-
-            idx_position = self.adata.obs.index.get_loc(matched_control_index)
-
-            matched_control = self.adata.obsm[self.input_type][idx_position]
+            idx_position_match = self.adata.obs.index.get_loc(matched_control_index)
+            matched_control = self.adata.obsm[self.input_type][idx_position_match]
 
             #get drug embedding
             drug_emb = ast.literal_eval(cell_meta[self.sm_emb_column])
