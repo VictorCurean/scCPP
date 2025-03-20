@@ -66,7 +66,7 @@ class FiLMModel(nn.Module):
             nn.LayerNorm(512),
             nn.GELU(),
             nn.Dropout(config['model_params']['dropout']),
-            nn.Linear(512, output_dim)
+            nn.Linear(512, output_dim),
             nn.ReLU()
         )
 
