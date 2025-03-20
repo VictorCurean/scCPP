@@ -112,56 +112,65 @@ def __get_model_performance_aggregated(formatted_test_results, dist_func):
     return results, stdevs
 
 
-def __get_results__fc(results, adata_control):
+def __get_results__fc(results, adata_control, obsm_key, gene_names):
     """
     Get fold changes results
     """
 
-    #create adata control
-    adata_ctrl = ad.AnnData(adata_control.X)
-    adata_ctrl.obs['cell_type'] = adata_control.obs['cell_type']
-    adata_ctrl.obs['compound'] = adata_control.obs['product_name']
+    # create adata control
+    adata_ctrl = ad.AnnData(adata_control.obsm[obsm_key])
+    adata_ctrl.obs['cell_type'] = list(adata_control.obs['cell_type'])
+    adata_ctrl.obs['compound'] = list(adata_control.obs['product_name'])
     adata_ctrl.obs['dose'] = 0
     adata_ctrl.obs['condition'] = 'control'
 
-    #create adata perturbed
+    # create adata perturbed
     adata_pert = ad.AnnData(np.array(results['pert_emb'].tolist()))
     adata_pert.obs['cell_type'] = list(results['cell_type'])
     adata_pert.obs['compound'] = list(results['compound'])
     adata_pert.obs['dose'] = list(results['dose'])
     adata_pert.obs['condition'] = 'perturbed'
 
-    #create adata pred
+    # create adata pred
     adata_pred = ad.AnnData(np.array(results['pred_emb'].tolist()))
     adata_pred.obs['cell_type'] = list(results['cell_type'])
     adata_pred.obs['compound'] = list(results['compound'])
     adata_pred.obs['dose'] = list(results['dose'])
     adata_pred.obs['condition'] = 'predicted'
 
-
     adata = ad.concat([adata_ctrl, adata_pert, adata_pred])
+    adata.obs_names_make_unique()
+    adata.var_names = gene_names
 
     logFC_results = []
 
-    #calculate FC
+    # calculate FC
 
     for (cell_type, compound, dose) in adata.obs[['cell_type', 'compound', 'dose']].drop_duplicates().itertuples(
             index=False):
-        #subset adata for the specific group
-        subset = adata[(adata.obs['cell_type'] == cell_type) & (adata.obs['compound'] == compound) & (
-                    adata.obs['dose'] == dose)].copy()
 
-        assert len(list(subset['condition'].unique())) == 3
+        if compound == "Vehicle":
+            continue
+
+        # subset adata for the specific group
+        subset1 = adata[(adata.obs['cell_type'] == cell_type) & (adata.obs['compound'] == compound) & (
+                adata.obs['dose'] == dose)].copy()
+        subset2 = adata[(adata.obs['cell_type'] == cell_type) & (adata.obs['compound'] == "Vehicle")].copy()
+
+        subset = ad.concat([subset1, subset2])
+
+        assert len(list(subset.obs['condition'].unique())) == 3
 
         sc.tl.rank_genes_groups(subset, groupby='condition', reference='control', method='wilcoxon')
 
-        names_pert = subset.uns['rank_genes_groups']['names']['perturbed']
-        names_pred = subset.uns['rank_genes_groups']['names']['predicted']
+        df_perturbed = sc.get.rank_genes_groups_df(subset, "perturbed")
+        df_predicted = sc.get.rank_genes_groups_df(subset, "predicted")
 
-        assert names_pert == names_pred
+        df_perturbed = df_perturbed.sort_values(by="names")
+        df_predicted = df_predicted.sort_values(by="names")
 
-        logFC_pert = subset.uns['rank_genes_groups']['logfoldchanges']['perturbed']
-        logFC_pred = subset.uns['rank_genes_groups']['logfoldchanges']['predicted']
+        logFC_pert = df_perturbed['logfoldchanges']
+        logFC_pred = df_predicted['logfoldchanges']
 
         logFC_results.append({
             'cell_type': cell_type,
@@ -174,48 +183,59 @@ def __get_results__fc(results, adata_control):
     return pd.DataFrame(logFC_results)
 
 
-def __get_topn_genes_similarity(logfc_res, dist_func, top_n):
-    distances = {}
-
-    # Group by the unique conditions (cell_type, compound, dose)
-    conditions = logfc_res.groupby(['cell_type', 'compound', 'dose'])
-
-
-
-
-def __get_rank_similarity(logfc_res, dist_func, reverse):
+def __get_logFC_rank_score(res_logfc_full):
     """
-    Calculate rank similarity metric proposed in the PerturBench paper.
+    Get the rank based on logFC results
     """
-    results = list()
+    results = dict()
+    stdevs = dict()
 
-    #iterate over all perturbed logFC values
-    for i, row1 in logfc_res.iterrows():
+    for cell_type in res_logfc_full['cell_type'].unique():
 
-        fc_pert = np.array(row1['logFC_pert'])
+        res_logfc = res_logfc_full[res_logfc_full['cell_type'] == cell_type]
 
-        order = list()
+        scores = list()
+        for i, row in res_logfc.iterrows():
+            pert_logfc = row['logFC_pert']
 
-        #iterate over all predicted logFC values
-        for j, row2 in logfc_res.iterrows():
+            cosine_sim_per_pert = list()
+            for j, row2 in res_logfc.iterrows():
+                pred_logfc = row2['logFC_pred']
 
-            fc_pred = np.array(row2['logFC_pred'])
+                cos_sim = np.dot(pred_logfc, pert_logfc) / (np.linalg.norm(pred_logfc) * np.linalg.norm(pert_logfc))
+                cosine_sim_per_pert.append([j, cos_sim])
 
-            dist = dist_func(fc_pert, fc_pred)
+            cosine_sim_per_pert = sorted(cosine_sim_per_pert, key=lambda x: x[1], reverse=True)
+            position = next((x for x, sublist in enumerate(cosine_sim_per_pert) if sublist[0] == i), -1)
+            rank = position / (len(cosine_sim_per_pert) - 1)
+            scores.append(rank)
 
-            order.append([j, dist])
+        results[cell_type] = np.mean(scores)
+        stdevs[cell_type] = np.std(scores)
+    return results, stdevs
 
-        order = sorted(order, key=lambda x: x[1], reverse=reverse)
+def get_all_results(formatted_test_results, adata_control, output_name, gene_names, model_name):
 
-        index = next((x for x, val in enumerate(order) if val[0] == j), None)
+    #pairwise MSE
+    res_mse_pairwise, std_mse_pairwise =  __get_model_performance_pairwise(formatted_test_results, mean_squared_error)
 
-        total_conditions = logfc_res.shape[0]
+    #aggregated MSE
+    res_mse_agg, std_mse_agg = __get_model_performance_aggregated(formatted_test_results, __get_mse)
 
-        score = index / rank
+    #pairwise R2
+    res_r2_pairwise, std_r2_pairwise = __get_model_performance_pairwise(formatted_test_results, r2_score)
 
-        results.append(score)
+    #aggregated R2
+    res_r2_agg, std_r2_agg = __get_model_performance_aggregated(formatted_test_results, __get_r2_score)
 
-    return np.mean(results), np.std(results)
+    #rank all logFC
+    lfc = __get_results__fc(formatted_test_results, adata_control, output_name, gene_names)
+    res_rank_logfc, std_rank_logfc = __get_logFC_rank_score(lfc)
+
+    return {"key": model_name, "mse_pw_A549": }
+
+
+
 
 
 

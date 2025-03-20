@@ -67,6 +67,7 @@ class FiLMModel(nn.Module):
             nn.GELU(),
             nn.Dropout(config['model_params']['dropout']),
             nn.Linear(512, output_dim)
+            nn.ReLU()
         )
 
     def forward(self, control_cell, drug_emb):
@@ -80,7 +81,4 @@ class FiLMModel(nn.Module):
             x = x + residual
             x = film_block[1](x)  # LayerNorm after residual
             x = film_block[2](x)  # GELU
-        return self.output_proj(x)
-
-        # Gradual output reconstruction
         return self.output_proj(x)
