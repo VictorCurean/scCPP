@@ -214,16 +214,10 @@ def __get_logFC_rank_score(res_logfc_full):
         stdevs[cell_type] = np.std(scores)
     return results, stdevs
 
-def get_all_results(formatted_test_results, adata_control, output_name, gene_names, model_name):
-
-    #pairwise MSE
-    res_mse_pairwise, std_mse_pairwise =  __get_model_performance_pairwise(formatted_test_results, mean_squared_error)
+def get_model_stats(formatted_test_results, adata_control, output_name, gene_names, model_name):
 
     #aggregated MSE
     res_mse_agg, std_mse_agg = __get_model_performance_aggregated(formatted_test_results, __get_mse)
-
-    #pairwise R2
-    res_r2_pairwise, std_r2_pairwise = __get_model_performance_pairwise(formatted_test_results, r2_score)
 
     #aggregated R2
     res_r2_agg, std_r2_agg = __get_model_performance_aggregated(formatted_test_results, __get_r2_score)
@@ -232,7 +226,18 @@ def get_all_results(formatted_test_results, adata_control, output_name, gene_nam
     lfc = __get_results__fc(formatted_test_results, adata_control, output_name, gene_names)
     res_rank_logfc, std_rank_logfc = __get_logFC_rank_score(lfc)
 
-    return {"key": model_name, "mse_pw_A549": }
+    return {"key": model_name,
+            "mse_A549": res_mse_agg['A549'], "std_mse_A549": std_mse_agg['A549'],
+            "mse_K562": res_mse_agg['K562'], "std_mse_K562": std_mse_agg['K562'],
+            "mse_MCF7": res_mse_agg['MCF7'], "std_mse_MCF7": std_mse_agg['MCF7'],
+            "r2_A549": res_r2_agg['A549'], "std_r2_A549": std_r2_agg['MCF7'],
+            "r2_K562": res_r2_agg['K562'], "std_r2_K562": std_r2_agg['K562'],
+            "r2_MCF7": res_r2_agg['MCF7'], "std_r2_MCF7": std_r2_agg['MCF7'],
+            "rank_logfc_A549": res_rank_logfc['A549'], "std_rank_logfc_A549": std_rank_logfc['A549'],
+            "rank_logfc_K562": res_rank_logfc['K562'], "std_rank_logfc_K562": std_rank_logfc['K562'],
+            "rank_logfc_MCF7": res_rank_logfc['MCF7'], "std_rank_logfc_MCF7": std_rank_logfc['MCF7']}
+
+
 
 
 
