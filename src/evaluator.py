@@ -22,7 +22,7 @@ def loss_fn_custom(pred, target, control):
     
     return l1_loss + 0.3 * cos_loss
 
-def l2_loss((pred, target, control):
+def l2_loss(pred, target, control):
     rmse = nn.MSELoss()
     return rmse(pred, target)
 
