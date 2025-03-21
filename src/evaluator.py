@@ -79,7 +79,7 @@ class FiLMModelEvaluator():
         device = self.device  # Target device (e.g., 'cuda' or 'cpu')
 
         iteration = 0
-        every_n = 10
+        every_n = 100
 
         loss_fn = l2_loss
 

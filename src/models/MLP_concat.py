@@ -18,18 +18,19 @@ class MLPModel(nn.Module):
         for hidden_dim in self.hidden_layers:
             layers.extend([
                 nn.Linear(in_features, hidden_dim),
-                nn.LayerNorm(hidden_dim),
-                nn.GELU(),
+                nn.BatchNorm1d(hidden_dim),
+                nn.LeakyReLU(),
                 nn.Dropout(dropout)
             ])
             in_features = hidden_dim
 
         # Final projection back to cell embedding space
         layers.append(nn.Linear(in_features, input_dim))
+        layers.append(nn.ReLU())
 
         self.mlp = nn.Sequential(*layers)
 
-    def forward(self, input, condition):
+    def forward(self, control_cell, drug_emb):
         # Concatenate all inputs
-        x = torch.cat([input, condition], dim=-1)
+        x = torch.cat([control_cell, drug_emb], dim=-1)
         return self.mlp(x)
