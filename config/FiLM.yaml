@@ -11,10 +11,6 @@ train_params:
   batch_size: 256
   lr: 0.0001
   weight_decay: 0.001
-
-dataset_params:
-  sciplex_adata_path: "/home/victor/projects/dege-fm/data/sciplex/sciplex_preprocessed.h5ad"
-  zhao_adata_path: "/home/victor/projects/dege-fm/data/zhao/zhao_preprocessed.h5ad"
-  sciplex_drugs_train: "/home/victor/projects/dege-fm/data/sciplex/drugs_train_list.txt"
-  sciplex_drugs_test: "/home/victor/projects/dege-fm/data/sciplex/drugs_validation_list.txt"
-  seed: 1702
+  scheduler_mode: 'min'
+  scheduler_factor: 0.1
+  scheduler_patience: 5

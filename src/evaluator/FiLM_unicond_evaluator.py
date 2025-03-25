@@ -1,41 +1,28 @@
 import yaml
-import seaborn as sns
 import torch.optim as optim
-import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
-import matplotlib.pyplot as plt
+from abstract_evaluator import AbstractEvaluator
 
 import torch
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-import torch.nn.functional as F
 
 
-def loss_fn_custom(pred, target, control):
-    # L1 loss (primary term)
-    l1_loss = F.l1_loss(pred, target)
-    
-    pred_dir = pred - control
-    target_dir = target - control
-    cos_loss = 1 - F.cosine_similarity(pred_dir, target_dir).mean()
-    
-    return l1_loss + 0.3 * cos_loss
-
-def l2_loss(pred, target, control):
-    rmse = nn.MSELoss()
-    return rmse(pred, target)
-
-
-class FiLMModelEvaluator():
+class FiLMModelEvaluator(AbstractEvaluator):
 
     def __init__(self, config_path, model, sciplex_dataset_train, sciplex_dataset_validation, sciplex_dataset_test):
         # load config file
-        self.__read_config(config_path)
+        self.read_config(config_path)
+
+        #load model
+        self.model = model(self.config)
 
         #prepare model
-        self.__prepare_model(model)
+        self.prepare_model()
 
+
+        #load training, validation and test data in
         self.sciplex_loader_train = DataLoader(sciplex_dataset_train,
                                                batch_size=self.config['train_params']['batch_size'],
                                                shuffle=True,
@@ -50,7 +37,7 @@ class FiLMModelEvaluator():
                                               batch_size=self.config['train_params']['batch_size'],
                                               shuffle=True, num_workers=0)
 
-    def __read_config(self, config_path):
+    def read_config(self, config_path):
         with open(config_path, 'r') as file:
             try:
                 self.config = yaml.safe_load(file)
@@ -60,28 +47,25 @@ class FiLMModelEvaluator():
 
 
 
-    def __prepare_model(self, model):
+    def prepare_model(self):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.model = model(self.config)
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr=self.config['train_params']['lr'],
                                     weight_decay=self.config['train_params']['weight_decay'])
 
         self.model = self.model.to(self.device)
 
-    def train(self):
-        print("Begin training ...")
-        self.model.train()  # Set the model to training mode
-        losses = []
+        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
+                                                              mode=self.config['train_params']['scheduler_mode'],
+                                                              factor=self.config['train_params']['scheduler_factor'],
+                                                              patience=self.config['train_params']['scheduler_patience'])
+
+    def train(self, loss_fn):
+        self.model.train()
 
         num_epochs = self.config['train_params']['num_epochs']
-        device = self.device  # Target device (e.g., 'cuda' or 'cpu')
-
-        iteration = 0
-        every_n = 100
-
-        loss_fn = l2_loss
+        device = self.device
 
         for epoch in range(num_epochs):
             print(f"Epoch {epoch + 1}/{num_epochs}")
@@ -99,59 +83,45 @@ class FiLMModelEvaluator():
                 output = self.model(control, drug_emb)
 
                 # Compute the loss
-                #loss = self.criterion(output, treated_emb)
                 loss = loss_fn(output, target, control)
 
-                # Backpropagation
+                # Backprop
                 loss.backward()
 
                 # Update model parameters
                 self.optimizer.step()
 
-                # Track the loss
-                losses.append(loss.item())
 
-                iteration += 1
+            ### VALIDATION LOOP ###
 
-                #############VALIDATION LOOP#################
+            validation_losses = list()
+            with torch.no_grad():
+                for control, drug_emb, target, meta in self.sciplex_loader_validation:
 
-                if iteration % every_n == 0:
+                    control, drug_emb, target = (
+                        control.to(device),
+                        drug_emb.to(device),
+                        target.to(device)
+                    )
 
+                    # Forward pass
+                    output_validation = self.model(control, drug_emb)
 
-                    validation_losses = list()
-                    with torch.no_grad():
-                        for control, drug_emb, target, meta in self.sciplex_loader_validation:
+                    # Compute loss
+                    validation_loss = loss_fn(output_validation, target, control)
 
-                            control, drug_emb, target = (
-                                control.to(device),
-                                drug_emb.to(device),
-                                target.to(device)
-                            )
+                    # Track validation loss
+                    validation_losses.append(validation_loss.item())
 
+            self.scheduler.step(np.mean(validation_losses))
+            print(f"Epoch {epoch + 1}/{num_epochs}", "Validation Loss:", np.mean(validation_losses))
 
-                            # Forward pass
-                            output_validation = self.model(control, drug_emb)
+            ### VALIDATION LOOP###
 
-                            # Compute loss
-                            validation_loss = loss_fn(output_validation, target, control)
-
-                            # Track validation loss
-                            validation_losses.append(validation_loss.item())
-
-
-                    print("Iteration:", iteration, "Test Loss:", loss.item(), "Avg. Validation Loss:", np.mean(validation_losses))
-
-                #############VALIDATION LOOP#################
-
-        self.losses_train = losses
         self.trained_model = self.model
 
-        print("Training completed.")
 
-    def test(self, save_path=None):
-        """
-        Test the FiLMResidualModel and collect results.
-        """
+    def test(self):
         control_embeddings = []
         treated_embeddings = []
         model_output = []
@@ -198,36 +168,6 @@ class FiLMModelEvaluator():
             "cell_type": cell_types_list,
             "dose": doses_list
         })
-
-        print("Testing completed. Results stored in 'self.test_results'.")
-
-        # Save to file if save_path is provided
-        if save_path:
-            self.save_results(save_path)
-
-    def save_results(self, save_path):
-        """
-        Saves test results to a file. Supports multiple formats (CSV, JSON, Pickle).
-        """
-        file_extension = save_path.split('.')[-1]
-
-        if file_extension == 'csv':
-            # Convert embeddings to lists for CSV compatibility
-            df_to_save = self.test_results.copy()
-            df_to_save['ctrl_emb'] = df_to_save['ctrl_emb'].apply(list)
-            df_to_save['pert_emb'] = df_to_save['pert_emb'].apply(list)
-            df_to_save['pred_emb'] = df_to_save['pred_emb'].apply(list)
-            df_to_save.to_csv(save_path, index=False)
-        elif file_extension == 'json':
-            # Save to JSON
-            self.test_results.to_json(save_path, orient='records')
-        elif file_extension == 'pkl':
-            # Save to Pickle for preserving object types like tensors
-            self.test_results.to_pickle(save_path)
-        else:
-            raise ValueError(f"Unsupported file format: {file_extension}")
-
-        print(f"Results saved to {save_path}.")
 
     def get_test_results(self):
         return self.test_results
