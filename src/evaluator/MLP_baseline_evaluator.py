@@ -1,4 +1,5 @@
 import yaml
+import optuna
 import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
 from evaluator.abstract_evaluator import AbstractEvaluator
@@ -12,7 +13,18 @@ from tqdm import tqdm
 class MLPBaselineEvaluator(AbstractEvaluator):
 
     def __init__(self, config_path, model, sciplex_dataset_train, sciplex_dataset_validation, sciplex_dataset_test):
-        # load config file
+
+        self.config = None
+        self.test_results = None
+        self.trained_model_weights = None
+        self.best_epoch = None
+        self.model_patience = None
+        self.scheduler = None
+        self.optimizer = None
+        self.device = None
+        self.best_loss = None
+        
+        
         self.read_config(config_path)
 
         #load model
@@ -21,7 +33,6 @@ class MLPBaselineEvaluator(AbstractEvaluator):
 
         #prepare model
         self.prepare_model()
-
 
         #load training, validation and test data in
         self.sciplex_loader_train = DataLoader(sciplex_dataset_train,
@@ -38,6 +49,9 @@ class MLPBaselineEvaluator(AbstractEvaluator):
                                               batch_size=self.config['train_params']['batch_size'],
                                               shuffle=True, num_workers=0)
 
+
+
+
     def read_config(self, config_path):
         with open(config_path, 'r') as file:
             try:
@@ -48,27 +62,35 @@ class MLPBaselineEvaluator(AbstractEvaluator):
 
 
 
-    def prepare_model(self):
+    def prepare_model(self, trial):
+        lr = trial.suggest_loguniform('lr', 1e-5, 1e-2)
+        weight_decay = trial.suggest_loguniform('weight_decay', 1e-6, 1e-2)
+        #batch_size = trial.suggest_categorical('batch_size', [16, 32, 64, 128])
+        scheduler_factor = trial.suggest_loguniform('scheduler_factor', 0.1, 0.5)
+        scheduler_patience = trial.suggest_int('scheduler_patience', 1, 20)
+
+
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.optimizer = optim.Adam(self.model.parameters(),
-                                    lr=self.config['train_params']['lr'],
-                                    weight_decay=self.config['train_params']['weight_decay'])
+                                    lr=lr,
+                                    weight_decay=weight_decay)
 
         self.model = self.model.to(self.device)
 
+
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
                                                               mode=self.config['train_params']['scheduler_mode'],
-                                                              factor=self.config['train_params']['scheduler_factor'],
-                                                              patience=self.config['train_params']['scheduler_patience'])
+                                                              factor=scheduler_factor,
+                                                              patience=scheduler_patience)
+
 
         self.model_patience = self.config['train_params']['model_patience']
 
-    def train(self, loss_fn):
+    def train(self, loss_fn, trial):
         self.model.train()
 
         num_epochs = self.config['train_params']['num_epochs']
-        device = self.device
 
         best_model_weights = self.model.state_dict()
         self.best_loss = float('inf')
@@ -77,9 +99,9 @@ class MLPBaselineEvaluator(AbstractEvaluator):
         for epoch in range(num_epochs):
             for control, drug_emb, target, meta in self.sciplex_loader_train:
                 # Move tensors to the specified device
-                control = control.to(device)
-                drug_emb = drug_emb.to(device)
-                target = target.to(device)
+                control = control.to(self.device)
+                drug_emb = drug_emb.to(self.device)
+                target = target.to(self.device)
 
                 # Zero the gradients
                 self.optimizer.zero_grad()
@@ -97,6 +119,11 @@ class MLPBaselineEvaluator(AbstractEvaluator):
                 self.optimizer.step()
 
             validation_loss = self.validate(loss_fn)
+
+            trial.report(validation_loss, epoch)
+
+            if trial.should_prune():
+                raise optuna.exceptions.TrialPruned()
 
             if validation_loss < self.best_loss:
                 self.best_loss = validation_loss
