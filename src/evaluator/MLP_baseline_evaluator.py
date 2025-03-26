@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-class FiLMModelEvaluator(AbstractEvaluator):
+class MLPBaselineEvaluator(AbstractEvaluator):
 
     def __init__(self, config_path, model, sciplex_dataset_train, sciplex_dataset_validation, sciplex_dataset_test):
         # load config file
@@ -61,15 +61,16 @@ class FiLMModelEvaluator(AbstractEvaluator):
                                                               factor=self.config['train_params']['scheduler_factor'],
                                                               patience=self.config['train_params']['scheduler_patience'])
 
-    def train(self, loss_fn):
+    def train(self, model, loss_fn):
         self.model.train()
 
         num_epochs = self.config['train_params']['num_epochs']
         device = self.device
 
-        for epoch in range(num_epochs):
-            print(f"Epoch {epoch + 1}/{num_epochs}")
+        best_model_weights = self.model.deepcopy(self.model.state_dict())
+        self.best_loss = float('inf')
 
+        for epoch in range(num_epochs):
             for control, drug_emb, target, meta in self.sciplex_loader_train:
                 # Move tensors to the specified device
                 control = control.to(device)
@@ -91,35 +92,37 @@ class FiLMModelEvaluator(AbstractEvaluator):
                 # Update model parameters
                 self.optimizer.step()
 
+            validation_loss = self.validate(loss_fn)
+            
+            if validation_loss < self.best_loss:
+                self.best_loss = validation_loss
+                best_model_weights = self.model.deepcopy(self.model.state_dict())
 
-            ### VALIDATION LOOP ###
 
-            validation_losses = list()
-            with torch.no_grad():
-                for control, drug_emb, target, meta in self.sciplex_loader_validation:
+        self.trained_model_weights = best_model_weights
 
-                    control, drug_emb, target = (
-                        control.to(device),
-                        drug_emb.to(device),
-                        target.to(device)
-                    )
+    def validate(self, loss_fn):
+        validation_losses = list()
+        with torch.no_grad():
+            for control, drug_emb, target, meta in self.sciplex_loader_validation:
+                control, drug_emb, target = (
+                    control.to(self.device),
+                    drug_emb.to(self.device),
+                    target.to(self.device)
+                )
 
-                    # Forward pass
-                    output_validation = self.model(control, drug_emb)
+                # Forward pass
+                output_validation = self.model(control, drug_emb)
 
-                    # Compute loss
-                    validation_loss = loss_fn(output_validation, target, control)
+                # Compute loss
+                validation_loss = loss_fn(output_validation, target, control)
 
-                    # Track validation loss
-                    validation_losses.append(validation_loss.item())
+                # Track validation loss
+                validation_losses.append(validation_loss.item())
 
-            self.scheduler.step(np.mean(validation_losses))
-            print(f"Epoch {epoch + 1}/{num_epochs}", "Validation Loss:", np.mean(validation_losses))
+        self.scheduler.step(np.mean(validation_losses))
 
-            ### VALIDATION LOOP###
-
-        self.trained_model = self.model
-
+        return np.mean(validation_losses)
 
     def test(self):
         control_embeddings = []
@@ -129,7 +132,9 @@ class FiLMModelEvaluator(AbstractEvaluator):
         cell_types_list = []
         doses_list = []
 
-        self.trained_model.eval()  # Set the model to evaluation mode
+        self.best_model = self.model(self.config).to(self.device)
+        self.best_model.load_state_dict(self.trained_model_weights)
+        self.best_model.eval()
 
         with torch.no_grad():  # Disable gradient computation
             for control, drug_emb, target, meta in tqdm(self.sciplex_loader_test):
@@ -139,7 +144,7 @@ class FiLMModelEvaluator(AbstractEvaluator):
                 target = target.to(self.device)
 
                 # Forward pass through the model
-                output = self.trained_model(control, drug_emb)
+                output = self.best_model(control, drug_emb)
 
                 # Convert tensors to lists of NumPy arrays for DataFrame compatibility
                 control_emb_list = [x.cpu().numpy() for x in torch.unbind(control, dim=0)]
