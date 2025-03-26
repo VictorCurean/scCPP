@@ -136,6 +136,7 @@ class MLPBaselineEvaluator(AbstractEvaluator):
         cell_types_list = []
         doses_list = []
 
+        self.test_model = self.test_model.to(self.device)
         self.test_model.load_state_dict(self.trained_model_weights)
         self.test_model.eval()
 
