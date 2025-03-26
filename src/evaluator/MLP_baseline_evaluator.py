@@ -17,6 +17,7 @@ class MLPBaselineEvaluator(AbstractEvaluator):
 
         #load model
         self.model = model(self.config)
+        self.test_model = model(self.config)
 
         #prepare model
         self.prepare_model()
@@ -93,13 +94,13 @@ class MLPBaselineEvaluator(AbstractEvaluator):
                 self.optimizer.step()
 
             validation_loss = self.validate(loss_fn)
-            print(f"Epoch {epoch + 1} Validation Loss:", validation_loss, f"Best loss: {self.best_loss}")
 
-            
             if validation_loss < self.best_loss:
                 self.best_loss = validation_loss
+                self.best_epoch = epoch + 1
                 best_model_weights = self.model.state_dict()
 
+            print(f"Epoch {epoch + 1} Validation Loss:", validation_loss, f"\t| Best loss: {self.best_loss} in epoch {self.best_epoch}")
 
 
         self.trained_model_weights = best_model_weights
@@ -135,9 +136,8 @@ class MLPBaselineEvaluator(AbstractEvaluator):
         cell_types_list = []
         doses_list = []
 
-        self.best_model = self.model(self.config).to(self.device)
-        self.best_model.load_state_dict(self.trained_model_weights)
-        self.best_model.eval()
+        self.test_model.load_state_dict(self.trained_model_weights)
+        self.test_model.eval()
 
         with torch.no_grad():  # Disable gradient computation
             for control, drug_emb, target, meta in tqdm(self.sciplex_loader_test):
@@ -147,7 +147,7 @@ class MLPBaselineEvaluator(AbstractEvaluator):
                 target = target.to(self.device)
 
                 # Forward pass through the model
-                output = self.best_model(control, drug_emb)
+                output = self.test_model(control, drug_emb)
 
                 # Convert tensors to lists of NumPy arrays for DataFrame compatibility
                 control_emb_list = [x.cpu().numpy() for x in torch.unbind(control, dim=0)]
