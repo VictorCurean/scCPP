@@ -61,13 +61,13 @@ class MLPBaselineEvaluator(AbstractEvaluator):
                                                               factor=self.config['train_params']['scheduler_factor'],
                                                               patience=self.config['train_params']['scheduler_patience'])
 
-    def train(self, model, loss_fn):
+    def train(self, loss_fn):
         self.model.train()
 
         num_epochs = self.config['train_params']['num_epochs']
         device = self.device
 
-        best_model_weights = self.model.deepcopy(self.model.state_dict())
+        best_model_weights = self.model.state_dict()
         self.best_loss = float('inf')
 
         for epoch in range(num_epochs):
@@ -93,10 +93,13 @@ class MLPBaselineEvaluator(AbstractEvaluator):
                 self.optimizer.step()
 
             validation_loss = self.validate(loss_fn)
+            print(f"Epoch {epoch + 1} Validation Loss:", validation_loss.item(), f"Best loss: {self.best_loss.item()}")
+
             
             if validation_loss < self.best_loss:
                 self.best_loss = validation_loss
-                best_model_weights = self.model.deepcopy(self.model.state_dict())
+                best_model_weights = self.model.state_dict()
+
 
 
         self.trained_model_weights = best_model_weights

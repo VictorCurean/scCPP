@@ -9,9 +9,6 @@ from tqdm import tqdm
 class NullEvaluator(AbstractEvaluator):
 
     def __init__(self, sciplex_dataset_test):
-
-        #load training, validation and test data in
-
         self.sciplex_loader_test = DataLoader(sciplex_dataset_test,
                                               batch_size=self.config['train_params']['batch_size'],
                                               shuffle=True, num_workers=0)
@@ -38,11 +35,7 @@ class NullEvaluator(AbstractEvaluator):
         for control, drug_emb, target, meta in tqdm(self.sciplex_loader_test):
             # Move tensors to the specified device
             control = control.to(self.device)
-            drug_emb = drug_emb.to(self.device)
             target = target.to(self.device)
-
-            # Forward pass through the model
-            output = self.trained_model(control, drug_emb)
 
             # Convert tensors to lists of NumPy arrays for DataFrame compatibility
             control_emb_list = [x.cpu().numpy() for x in torch.unbind(control, dim=0)]
