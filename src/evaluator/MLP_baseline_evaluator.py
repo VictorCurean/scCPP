@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 class MLPBaselineEvaluator(AbstractEvaluator):
 
-    def __init__(self, config_path, model, sciplex_dataset_train, sciplex_dataset_validation, sciplex_dataset_test):
+    def __init__(self, config_path, model, sciplex_dataset_train, sciplex_dataset_validation, sciplex_dataset_test, trial):
 
         self.config = None
         self.test_results = None
@@ -32,7 +32,7 @@ class MLPBaselineEvaluator(AbstractEvaluator):
         self.test_model = model(self.config)
 
         #prepare model
-        self.prepare_model()
+        self.prepare_model(trial)
 
         #load training, validation and test data in
         self.sciplex_loader_train = DataLoader(sciplex_dataset_train,
