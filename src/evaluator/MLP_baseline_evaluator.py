@@ -93,7 +93,7 @@ class MLPBaselineEvaluator(AbstractEvaluator):
                 self.optimizer.step()
 
             validation_loss = self.validate(loss_fn)
-            print(f"Epoch {epoch + 1} Validation Loss:", validation_loss.item(), f"Best loss: {self.best_loss.item()}")
+            print(f"Epoch {epoch + 1} Validation Loss:", validation_loss, f"Best loss: {self.best_loss}")
 
             
             if validation_loss < self.best_loss:
