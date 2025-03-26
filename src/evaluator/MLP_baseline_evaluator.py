@@ -62,6 +62,8 @@ class MLPBaselineEvaluator(AbstractEvaluator):
                                                               factor=self.config['train_params']['scheduler_factor'],
                                                               patience=self.config['train_params']['scheduler_patience'])
 
+        self.model_patience = self.config['train_params']['model_patience']
+
     def train(self, loss_fn):
         self.model.train()
 
@@ -70,6 +72,7 @@ class MLPBaselineEvaluator(AbstractEvaluator):
 
         best_model_weights = self.model.state_dict()
         self.best_loss = float('inf')
+        epochs_without_improvement = 0
 
         for epoch in range(num_epochs):
             for control, drug_emb, target, meta in self.sciplex_loader_train:
@@ -99,11 +102,20 @@ class MLPBaselineEvaluator(AbstractEvaluator):
                 self.best_loss = validation_loss
                 self.best_epoch = epoch + 1
                 best_model_weights = self.model.state_dict()
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+                if epochs_without_improvement >= self.model_patience:
+                    print(f"Early stopping at epoch {epoch + 1} due to no improvement in validation loss in {self.model_patience} epochs.")
+                    self.trained_model_weights = best_model_weights
+                    return self.best_loss
 
-            print(f"Epoch {epoch + 1} Validation Loss:", validation_loss, f"\t| Best loss: {self.best_loss} in epoch {self.best_epoch}")
+
+            print(f"Epoch {epoch + 1} Validation Loss:", validation_loss, f"\t| Best loss: {self.best_loss} \t in epoch {self.best_epoch}")
 
 
         self.trained_model_weights = best_model_weights
+        return self.best_loss
 
     def validate(self, loss_fn):
         validation_losses = list()
