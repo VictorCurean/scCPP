@@ -11,20 +11,23 @@ from tqdm import tqdm
 
 
 class MLPBaselineEvaluator(AbstractEvaluator):
-    def __init__(self, config_path, model, train_dataset, val_dataset, test_dataset, trial):
+    def __init__(self, config_path, model, train_dataset, val_dataset, test_dataset, lr, weight_decay, scheduler_factor, scheduler_patience, batch_size, scheduler_mode):
+        self.MODEL_PATIENCE = 10
+
         self.config = self.read_config(config_path)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-        # Initialize model, optimizer, and scheduler
         self.model = model(self.config).to(self.device)
-        self.test_model = model(self.config).to(self.device)
 
-        self.optimizer, self.scheduler, self.batch_size, self.model_patience = self.prepare_model(trial)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
+                                                         mode=scheduler_mode,
+                                                         factor=scheduler_factor,
+                                                         patience=scheduler_patience)
 
-        # Load data
-        self.train_loader = self.create_dataloader(train_dataset,  self.batch_size)
-        self.val_loader = self.create_dataloader(val_dataset,  self.batch_size)
-        self.test_loader = self.create_dataloader(test_dataset,  self.batch_size)
+
+        self.train_loader = self.create_dataloader(train_dataset,  batch_size)
+        self.val_loader = self.create_dataloader(val_dataset,  batch_size)
+        self.test_loader = self.create_dataloader(test_dataset,  batch_size)
 
     @staticmethod
     def read_config(config_path):
@@ -35,21 +38,6 @@ class MLPBaselineEvaluator(AbstractEvaluator):
     def create_dataloader(dataset, batch_size):
         return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
-    def prepare_model(self, trial):
-        lr = trial.suggest_loguniform('lr', 1e-5, 1e-2)
-        weight_decay = trial.suggest_loguniform('weight_decay', 1e-6, 1e-2)
-        scheduler_factor = trial.suggest_loguniform('scheduler_factor', 0.1, 0.5)
-        scheduler_patience = trial.suggest_int('scheduler_patience', 1, 20)
-        batch_size = trial.suggest_categorical('batch_size', [16, 32, 64, 128, 256])
-
-        optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-                                                         mode=self.config['train_params']['scheduler_mode'],
-                                                         factor=scheduler_factor,
-                                                         patience=scheduler_patience)
-
-        model_patience = self.config['train_params']['model_patience']
-        return optimizer, scheduler, batch_size, model_patience
 
     def train(self, loss_fn, trial):
         self.model.train()
@@ -75,7 +63,7 @@ class MLPBaselineEvaluator(AbstractEvaluator):
                 epochs_without_improvement = 0
             else:
                 epochs_without_improvement += 1
-                if epochs_without_improvement >= self.model_patience:
+                if epochs_without_improvement >= self.MODEL_PATIENCE:
                     print(f"Early stopping at epoch {epoch + 1}")
                     self.model.load_state_dict(best_model_weights)
                     return best_loss
