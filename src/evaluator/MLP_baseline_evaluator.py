@@ -2,7 +2,6 @@ import yaml
 import optuna
 import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
-from evaluator.abstract_evaluator import AbstractEvaluator
 
 import torch
 import pandas as pd
@@ -10,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-class MLPBaselineEvaluator(AbstractEvaluator):
+class MLPBaselineEvaluator():
     def __init__(self, config_path, model, train_dataset, val_dataset, test_dataset, lr, weight_decay, scheduler_factor, scheduler_patience, batch_size, scheduler_mode):
         self.MODEL_PATIENCE = 10
 
