@@ -18,7 +18,3 @@ class AbstractEvaluator(ABC):
     @abstractmethod
     def test(self):
         pass
-
-    @abstractmethod
-    def get_test_results(self):
-        pass
