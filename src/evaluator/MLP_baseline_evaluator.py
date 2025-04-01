@@ -17,6 +17,7 @@ class MLPBaselineEvaluator():
 
         self.model = MLPModel(params['input_dim'], params['drug_dim'], params['output_dim'], params['hidden_dims'],
                               params['dropout'])
+        self.model.to(self.device)
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=params['lr'], weight_decay=params['weight_decay'])
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
