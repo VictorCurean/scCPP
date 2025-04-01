@@ -1,4 +1,3 @@
-import yaml
 import optuna
 import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
@@ -11,29 +10,31 @@ from tqdm import tqdm
 
 
 class MLPBaselineEvaluator():
-    def __init__(self, train_dataset, val_dataset, test_dataset, lr, weight_decay, scheduler_factor, scheduler_patience, batch_size, scheduler_mode):
+    def __init__(self, train_dataset, val_dataset, test_dataset, params):
         self.MODEL_PATIENCE = 10
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.max_epochs = 100
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+        self.model = MLPModel(params['input_dim'], params['drug_dim'], params['output_dim'], params['hidden_dims'],
+                              params['dropout'])
+
+        self.optimizer = optim.Adam(self.model.parameters(), lr=params['lr'], weight_decay=params['weight_decay'])
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
-                                                         mode=scheduler_mode,
-                                                         factor=scheduler_factor,
-                                                         patience=scheduler_patience)
+                                                         mode=params['scheduler_mode'],
+                                                         factor=params['scheduler_factor'],
+                                                         patience=params['scheduler_patience'])
 
 
-        self.train_loader = self.create_dataloader(train_dataset,  batch_size)
-        self.val_loader = self.create_dataloader(val_dataset,  batch_size)
-        self.test_loader = self.create_dataloader(test_dataset,  batch_size)
+        self.train_loader = self.create_dataloader(train_dataset,  params['batch_size'])
+        self.val_loader = self.create_dataloader(val_dataset,  params['batch_size'])
+        self.test_loader = self.create_dataloader(test_dataset,  params['batch_size'])
+
+
 
 
     @staticmethod
     def create_dataloader(dataset, batch_size):
         return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
-
-    def prepare_model(self, params):
-        self.model = MLPModel(params['input_dim'], params['drug_dim'], params['output_dim'], params['hidden_dims'], params['dropout'])
 
 
     def train(self, loss_fn, trial):
