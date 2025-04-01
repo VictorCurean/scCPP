@@ -2,6 +2,7 @@ import yaml
 import optuna
 import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
+from src.models.MLP_concat import MLPModel
 
 import torch
 import pandas as pd
@@ -10,12 +11,10 @@ from tqdm import tqdm
 
 
 class MLPBaselineEvaluator():
-    def __init__(self, config_path, model, train_dataset, val_dataset, test_dataset, lr, weight_decay, scheduler_factor, scheduler_patience, batch_size, scheduler_mode):
+    def __init__(self, train_dataset, val_dataset, test_dataset, lr, weight_decay, scheduler_factor, scheduler_patience, batch_size, scheduler_mode):
         self.MODEL_PATIENCE = 10
-
-        self.config = self.read_config(config_path)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model = model(self.config).to(self.device)
+        self.max_epochs = 100
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
@@ -28,14 +27,13 @@ class MLPBaselineEvaluator():
         self.val_loader = self.create_dataloader(val_dataset,  batch_size)
         self.test_loader = self.create_dataloader(test_dataset,  batch_size)
 
-    @staticmethod
-    def read_config(config_path):
-        with open(config_path, 'r') as file:
-            return yaml.safe_load(file)
 
     @staticmethod
     def create_dataloader(dataset, batch_size):
         return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+
+    def prepare_model(self, params):
+        self.model = MLPModel(params['input_dim'], params['drug_dim'], params['output_dim'], params['hidden_dims'], params['dropout'])
 
 
     def train(self, loss_fn, trial):
@@ -44,7 +42,7 @@ class MLPBaselineEvaluator():
         best_loss = float('inf')
         epochs_without_improvement = 0
 
-        for epoch in range(self.config['train_params']['num_epochs']):
+        for epoch in range(self.max_epochs):
             for control, drug_emb, target, _ in self.train_loader:
                 control, drug_emb, target = control.to(self.device), drug_emb.to(self.device), target.to(self.device)
 
