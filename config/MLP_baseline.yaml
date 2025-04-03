@@ -1,15 +1,19 @@
 model_params:
-  control_dim: 1280
-  output_dim: 1280
+  control_dim: 2000
+  output_dim: 2000
   drug_emb_dim: 256
   mlp_hidden_dims: [2560, 1280, 1280]
   dropout: 0.05
 
 train_params:
-  num_epochs: 5
-  batch_size: 512
+  num_epochs: 100
+  batch_size: 64
   lr: 0.0001
   weight_decay: 0.001
+  scheduler_mode: 'min'
+  scheduler_factor: 0.1
+  scheduler_patience: 5
+  model_patience: 10
   
 
 dataset_params:
