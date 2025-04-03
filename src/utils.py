@@ -57,41 +57,11 @@ def __get_mse(X, Y):
     return mean_squared_error(x, y)
 
 
-def __get_model_performance_pairwise(formatted_test_results, dist_func):
-    """
-    Get the pairwise distances between matched predicted and perturbed values
-    """
-    results = dict()
-    stdevs = dict()
-
-    for cell_type in formatted_test_results['cell_type'].unique():
-        losses = list()
-
-        df_subset = formatted_test_results[formatted_test_results['cell_type'] == cell_type]
-
-        results_per_cell = list()
-
-        for i, row in df_subset.iterrows():
-
-            emb_pert = row['pert_emb'].tolist()
-            emb_pred = row['pred_emb'].tolist()
-
-            dist = dist_func(emb_pert, emb_pred)
-
-            results_per_cell.append(dist)
-
-        results[cell_type] = np.mean(results_per_cell)
-        stdevs[cell_type] = np.std(results_per_cell)
-
-    return results, stdevs
-
-
 def __get_model_performance_aggregated(formatted_test_results, dist_func):
     """
     Get the distance between per covariate combination aggregated matrices of perturbed and predicted values
     """
     results = dict()
-    stdevs = dict()
 
     for cell_type in formatted_test_results['cell_type'].unique():
         results_per_cell = list()
@@ -107,9 +77,8 @@ def __get_model_performance_aggregated(formatted_test_results, dist_func):
             results_per_cell.append(dist)
 
         results[cell_type] = np.mean(results_per_cell)
-        stdevs[cell_type] = np.std(results_per_cell)
 
-    return results, stdevs
+    return results
 
 
 def __get_results__fc(results, adata_control, obsm_key, gene_names):
@@ -188,7 +157,6 @@ def __get_logFC_rank_score(res_logfc_full):
     Get the rank based on logFC results
     """
     results = dict()
-    stdevs = dict()
 
     for cell_type in res_logfc_full['cell_type'].unique():
 
@@ -211,31 +179,36 @@ def __get_logFC_rank_score(res_logfc_full):
             scores.append(rank)
 
         results[cell_type] = np.mean(scores)
-        stdevs[cell_type] = np.std(scores)
-    return results, stdevs
+    return results
 
 def get_model_stats(formatted_test_results, adata_control, output_name, gene_names, model_name):
 
     #aggregated MSE
-    res_mse_agg, std_mse_agg = __get_model_performance_aggregated(formatted_test_results, __get_mse)
+    res_mse_agg = __get_model_performance_aggregated(formatted_test_results, __get_mse)
 
     #aggregated R2
-    res_r2_agg, std_r2_agg = __get_model_performance_aggregated(formatted_test_results, __get_r2_score)
+    res_r2_agg = __get_model_performance_aggregated(formatted_test_results, __get_r2_score)
+
+    #aggregated E-distance
+    res_edistance_agg = __get_model_performance_aggregated(formatted_test_results, __get_edistance)
 
     #rank all logFC
     lfc = __get_results__fc(formatted_test_results, adata_control, output_name, gene_names)
-    res_rank_logfc, std_rank_logfc = __get_logFC_rank_score(lfc)
+    res_rank_logfc = __get_logFC_rank_score(lfc)
 
     return {"key": model_name,
-            "mse_A549": res_mse_agg['A549'], "std_mse_A549": std_mse_agg['A549'],
-            "mse_K562": res_mse_agg['K562'], "std_mse_K562": std_mse_agg['K562'],
-            "mse_MCF7": res_mse_agg['MCF7'], "std_mse_MCF7": std_mse_agg['MCF7'],
-            "r2_A549": res_r2_agg['A549'], "std_r2_A549": std_r2_agg['MCF7'],
-            "r2_K562": res_r2_agg['K562'], "std_r2_K562": std_r2_agg['K562'],
-            "r2_MCF7": res_r2_agg['MCF7'], "std_r2_MCF7": std_r2_agg['MCF7'],
-            "rank_logfc_A549": res_rank_logfc['A549'], "std_rank_logfc_A549": std_rank_logfc['A549'],
-            "rank_logfc_K562": res_rank_logfc['K562'], "std_rank_logfc_K562": std_rank_logfc['K562'],
-            "rank_logfc_MCF7": res_rank_logfc['MCF7'], "std_rank_logfc_MCF7": std_rank_logfc['MCF7']}
+            "mse_A549": res_mse_agg['A549'],
+            "mse_K562": res_mse_agg['K562'],
+            "mse_MCF7": res_mse_agg['MCF7'],
+            "r2_A549": res_r2_agg['A549'],
+            "r2_K562": res_r2_agg['K562'],
+            "r2_MCF7": res_r2_agg['MCF7'],
+            "rank_logfc_A549": res_rank_logfc['A549'],
+            "rank_logfc_K562": res_rank_logfc['K562'],
+            "rank_logfc_MCF7": res_rank_logfc['MCF7'],
+            "edistance_A549": res_edistance_agg['A549'],
+            "edistance_K562": res_edistance_agg['K562'],
+            "edistance_MCF7": res_edistance_agg['MCF7']}
 
 
 
