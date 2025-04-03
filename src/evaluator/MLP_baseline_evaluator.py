@@ -181,8 +181,9 @@ def cross_validation_models(drug_splits=None, loss_function=None, adata=None, in
         best_epoch = best_trial.user_attrs["best_epoch"]
 
         #Retrain the model on validation + train set with the best parameters
+        drugs_train_final = list(drugs_train) + list(drugs_validation)
 
-        dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train + drugs_validation, drug_rep_name, drug_emb_size, input_name, output_name)
+        dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name, drug_emb_size, input_name, output_name)
         dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size, input_name, output_name)
 
         optimal_params['input_dim'] = input_dim
