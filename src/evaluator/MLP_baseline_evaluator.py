@@ -171,7 +171,7 @@ def cross_validation_models(drug_splits=None, loss_function=None, adata=None, in
         dataset_train = SciplexDatasetUnseenPerturbations(adata, drugs_train, drug_rep_name, drug_emb_size, input_name, output_name)
         dataset_validation = SciplexDatasetUnseenPerturbations(adata, drugs_validation, drug_rep_name, drug_emb_size, input_name, output_name)
 
-        study = optuna.create_study(direction='minimize')
+        study = optuna.create_study(direction='minimize', study_name=f"{run_name}_fold{i}", storage="sqlite:///optuna_study.db", load_if_exists=True)
         study.optimize(lambda trial: objective(trial,
                                                dataset_train=dataset_train, dataset_validation=dataset_validation,
                                                input_dim=input_dim, output_dim=output_dim,
