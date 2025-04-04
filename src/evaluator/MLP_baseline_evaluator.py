@@ -40,7 +40,7 @@ class MLPBaselineEvaluator():
 
     @staticmethod
     def create_dataloader(dataset, batch_size):
-        return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+        return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True)
 
 
     def train_with_validation(self, loss_fn, trial):
@@ -179,6 +179,9 @@ def cross_validation_models(drug_splits=None, loss_function=None, adata=None, in
         best_trial = study.best_trial
         optimal_params = best_trial.params
         best_epoch = best_trial.user_attrs["best_epoch"]
+
+        del dataset_train
+        del dataset_validation
 
         #Retrain the model on validation + train set with the best parameters
         drugs_train_final = list(drugs_train) + list(drugs_validation)
