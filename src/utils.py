@@ -1,20 +1,14 @@
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import scanpy as sc
 import anndata as ad
-import itertools
+
 
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error
-from scipy.stats import spearmanr
-from tqdm import tqdm
-import seaborn as sns
-import matplotlib.pyplot as plt
+from scipy.stats import pearsonr
 
-from scipy.cluster.hierarchy import linkage, dendrogram
-from sklearn.preprocessing import StandardScaler
 
 
 def format_test_results(test_results_raw):
@@ -138,19 +132,75 @@ def __get_results__fc(results, adata_control, obsm_key, gene_names):
         df_perturbed = df_perturbed.sort_values(by="names")
         df_predicted = df_predicted.sort_values(by="names")
 
-        logFC_pert = df_perturbed['logfoldchanges']
-        logFC_pred = df_predicted['logfoldchanges']
+        logFC_pert = df_perturbed['logfoldchanges'].tolist()
+        logFC_pred = df_predicted['logfoldchanges'].tolist()
+
+        names_pert = df_perturbed['names'].tolist()
+        names_pred = df_predicted['names'].tolist()
+
+        pvals_pert = df_perturbed['pvals_adj'].tolist()
+        pvals_pred = df_predicted['pvals_adj'].tolist()
+
+        assert names_pert == names_pred
 
         logFC_results.append({
             'cell_type': cell_type,
             'compound': compound,
             'dose': dose,
-            'logFC_pert': logFC_pert.tolist(),
-            'logFC_pred': logFC_pred.tolist()
+            'logFC_pert': logFC_pert,
+            'logFC_pred': logFC_pred,
+            'names': names_pert,
+            'pvals_pert': pvals_pert,
+            'pvals_pred': pvals_pred
         })
 
     return pd.DataFrame(logFC_results)
 
+def __get_top_logfc_correlation_score(res_logfc_full, topn=50):
+    """
+    Get the pearson correlation between the top DEGs between predicted and target
+    """
+    results = dict()
+    for cell_type in res_logfc_full['cell_type'].unique():
+        res_logfc = res_logfc_full[res_logfc_full['cell_type'] == cell_type]
+
+        scores = list()
+        for i, row in res_logfc.iterrows():
+
+            #perturbed top 50 logfc
+            combined_pert = list(zip(row['pvals_pert'], row['logFC_pert'], row['names']))
+            sorted_combined_pert = sorted(combined_pert, key=lambda x: x[0])
+            top50 = sorted_combined_pert[:topn]
+            top50_logFC_pert = [x[1] for x in top50]
+            top50_genes = [x[2] for x in top50]
+
+            #predicted logfc for same 50 genes
+            combined_pred = dict(zip(row['names'], row['logFC_pred']))
+            top50_logFC_pred = [combined_pred[gene] for gene in top50_genes]
+
+            corr, _ = pearsonr(top50_logFC_pert, top50_logFC_pred)
+            scores.append(corr)
+        results[cell_type] = np.mean(scores)
+    return results
+
+def __get_logfc_correlation_score(res_logfc_full):
+    """
+    Get the Pearson correlation between all DEGs between predicted and target
+    """
+    results = dict()
+    for cell_type in res_logfc_full['cell_type'].unique():
+        res_logfc = res_logfc_full[res_logfc_full['cell_type'] == cell_type]
+
+        scores = list()
+        for i, row in res_logfc.iterrows():
+
+            logFC_pert = row['logFC_pert']
+            logFC_pred = row['logFC_pred']
+
+            corr, _ = pearsonr(logFC_pert, logFC_pred)
+            scores.append(corr)
+        results[cell_type] = np.mean(scores)
+    return results
 
 def __get_logFC_rank_score(res_logfc_full):
     """
@@ -181,7 +231,7 @@ def __get_logFC_rank_score(res_logfc_full):
         results[cell_type] = np.mean(scores)
     return results
 
-def get_model_stats(formatted_test_results, adata_control, output_name, gene_names, model_name):
+def get_model_stats(formatted_test_results, adata_control, output_name, gene_names, key):
 
     #aggregated MSE
     res_mse_agg = __get_model_performance_aggregated(formatted_test_results, __get_mse)
@@ -192,11 +242,18 @@ def get_model_stats(formatted_test_results, adata_control, output_name, gene_nam
     #aggregated E-distance
     res_edistance_agg = __get_model_performance_aggregated(formatted_test_results, __get_edistance)
 
-    #rank all logFC
     lfc = __get_results__fc(formatted_test_results, adata_control, output_name, gene_names)
+
+    #rank all logFC
     res_rank_logfc = __get_logFC_rank_score(lfc)
 
-    return {"key": model_name,
+    #corr all logFC
+    res_logfc_corr = __get_logfc_correlation_score(lfc)
+
+    #corr top logFC
+    res_top_logfc_corr = __get_top_logfc_correlation_score(lfc, topn=50)
+
+    return {"key": key,
             "mse_A549": res_mse_agg['A549'],
             "mse_K562": res_mse_agg['K562'],
             "mse_MCF7": res_mse_agg['MCF7'],
@@ -208,7 +265,15 @@ def get_model_stats(formatted_test_results, adata_control, output_name, gene_nam
             "rank_logfc_MCF7": res_rank_logfc['MCF7'],
             "edistance_A549": res_edistance_agg['A549'],
             "edistance_K562": res_edistance_agg['K562'],
-            "edistance_MCF7": res_edistance_agg['MCF7']}
+            "edistance_MCF7": res_edistance_agg['MCF7'],
+            "logfc_corr_A549": res_logfc_corr['A549'],
+            "logfc_corr_K562": res_logfc_corr['K562'],
+            "logfc_corr_MCF7": res_logfc_corr['MCF7'],
+            "top_logfc_corr_A549": res_top_logfc_corr['A549'],
+            "top_logfc_corr_K562": res_top_logfc_corr['K562'],
+            "top_logfc_corr_MCF7": res_top_logfc_corr['MCF7'],
+            }
+
 
 
 
