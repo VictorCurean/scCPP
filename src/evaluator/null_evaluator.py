@@ -1,69 +1,75 @@
-from torch.utils.data.dataloader import DataLoader
-from evaluator.abstract_evaluator import AbstractEvaluator
-
 import torch
 import pandas as pd
 from tqdm import tqdm
 
+from torch.utils.data.dataloader import DataLoader
 
-class NullEvaluator(AbstractEvaluator):
+from src.dataset.dataset_unseen_compounds import SciplexDatasetUnseenPerturbations
+from src.utils import get_model_stats
 
-    def __init__(self, sciplex_dataset_test):
-        self.sciplex_loader_test = DataLoader(sciplex_dataset_test,
-                                              batch_size=self.config['train_params']['batch_size'],
-                                              shuffle=True, num_workers=0)
 
-    def read_config(self, config_path):
+class NullEvaluator:
+
+    def __init__(self, test_dataset):
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        self.test_loader = self.create_dataloader(test_dataset, 16)
+
+    @staticmethod
+    def create_dataloader(dataset, batch_size):
+        return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True)
+
+    def train_with_validation(self):
         pass
 
-
-    def prepare_model(self):
+    def train(self):
         pass
 
-    def train(self, loss_fn):
+    def validate(self):
         pass
-
 
     def test(self):
-        control_embeddings = []
-        treated_embeddings = []
-        model_output = []
-        compounds_list = []
-        cell_types_list = []
-        doses_list = []
+        results = {'ctrl_emb': [], 'pert_emb': [], 'pred_emb': [], 'compound': [], 'cell_type': [], 'dose': []}
 
-        for control, drug_emb, target, meta in tqdm(self.sciplex_loader_test):
-            # Move tensors to the specified device
-            control = control.to(self.device)
-            target = target.to(self.device)
 
-            # Convert tensors to lists of NumPy arrays for DataFrame compatibility
-            control_emb_list = [x.cpu().numpy() for x in torch.unbind(control, dim=0)]
-            treated_emb_list = [x.cpu().numpy() for x in torch.unbind(target, dim=0)]
-            output_list = [x.cpu().numpy() for x in torch.unbind(control, dim=0)]
+        for control, drug_emb, target, meta in tqdm(self.test_loader):
+            control, drug_emb, target = control.to(self.device), drug_emb.to(self.device), target.to(self.device)
 
-            # Meta information
-            compounds = meta['compound']
-            cell_types = meta['cell_type']
-            doses = [d.item() for d in meta['dose']]
 
-            # Append results to lists
-            control_embeddings.extend(control_emb_list)
-            treated_embeddings.extend(treated_emb_list)
-            model_output.extend(output_list)
-            compounds_list.extend(compounds)
-            cell_types_list.extend(cell_types)
-            doses_list.extend(doses)
+            results['ctrl_emb'].extend(control.cpu().numpy())
+            results['pert_emb'].extend(target.cpu().numpy())
+            results['pred_emb'].extend(control.cpu().numpy())
+            results['compound'].extend(meta['compound'])
+            results['cell_type'].extend(meta['cell_type'])
+            results['dose'].extend([d.item() for d in meta['dose']])
 
-        # Save results into a DataFrame
-        self.test_results = pd.DataFrame({
-            "ctrl_emb": control_embeddings,
-            "pert_emb": treated_embeddings,
-            "pred_emb": model_output,
-            "compound": compounds_list,
-            "cell_type": cell_types_list,
-            "dose": doses_list
-        })
+        return pd.DataFrame(results)
 
-    def get_test_results(self):
-        return self.test_results
+    @staticmethod
+    def objective():
+        pass
+
+    @staticmethod
+    def cross_validation_models(drug_splits=None, adata=None, input_name=None,
+                                output_name=None, drug_rep_name=None, drug_emb_size=None,
+                                gene_names_key=None, run_name=None):
+        output = dict()
+        for i in range(5):
+            drugs_test = drug_splits[f'drug_split_{i}']['test']
+
+
+            dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size, input_name, output_name)
+
+
+            final_ev = NullEvaluator(dataset_test)
+
+            #Get model performance metrics
+            adata_control = adata[adata.obs['product_name'] == "Vehicle"]
+            gene_names = adata_control.uns[gene_names_key]
+            predictions = final_ev.test()
+
+            performance = get_model_stats(predictions, adata_control, output_name, gene_names, run_name)
+            output[i] = performance
+
+        return output
+

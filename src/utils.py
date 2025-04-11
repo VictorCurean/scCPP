@@ -7,7 +7,7 @@ import anndata as ad
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, spearmanr
 
 
 
@@ -61,18 +61,53 @@ def __get_model_performance_aggregated(formatted_test_results, dist_func):
         results_per_cell = list()
 
         for compound in formatted_test_results['compound'].unique():
-            df_subset = formatted_test_results[formatted_test_results['cell_type'] == cell_type]
-            df_subset = df_subset[df_subset['compound'] == compound]
+            for dose in formatted_test_results['dose'].unique():
+                df_subset = formatted_test_results[formatted_test_results['cell_type'] == cell_type]
+                df_subset = df_subset[df_subset['compound'] == compound]
+                df_subset = df_subset[df_subset['dose'] == dose]
 
-            X_pert = np.array(df_subset['pert_emb'].tolist())
-            X_pred = np.array(df_subset['pred_emb'].tolist())
+                X_pert = np.array(df_subset['pert_emb'].tolist())
+                X_pred = np.array(df_subset['pred_emb'].tolist())
 
-            dist = dist_func(X_pert, X_pred)
-            results_per_cell.append(dist)
+                dist = dist_func(X_pert, X_pred)
+                results_per_cell.append(dist)
 
         results[cell_type] = np.mean(results_per_cell)
 
     return results
+
+def __get_predicted_bio_rep(formatted_test_results, control_adata, output_name):
+    """
+    Get the Spearman correlation between the distances of predicted-control values and incremental dosages
+    """
+    results = dict()
+
+    for cell_type in formatted_test_results['cell_type'].unique():
+        results_per_cell = list()
+        adata_control_subset = control_adata[control_adata.obs['cell_type'] == cell_type]
+        x_control = np.mean(adata_control_subset.obsm[output_name], axis=0)
+
+        for compound in formatted_test_results['compound'].unique():
+            distances = list()
+            doses = list()
+
+            for dose in sorted(list(formatted_test_results['dose'].unique()), reverse=False):
+                df_subset = formatted_test_results[formatted_test_results['cell_type'] == cell_type]
+                df_subset = df_subset[df_subset['compound'] == compound]
+                df_subset = df_subset[df_subset['dose'] == dose]
+                doses.append(dose)
+
+                x_pred = np.mean(np.array(df_subset['pred_emb'].tolist()), axis=0)
+
+                dist = mean_squared_error(x_control, x_pred)
+                distances.append(dist)
+
+            corr, _ = spearmanr(distances, doses)
+            results_per_cell.append(corr)
+        results[cell_type] = np.mean(results_per_cell)
+
+    return results
+
 
 
 def __get_results__fc(results, adata_control, obsm_key, gene_names):
@@ -253,6 +288,9 @@ def get_model_stats(formatted_test_results, adata_control, output_name, gene_nam
     #corr top logFC
     res_top_logfc_corr = __get_top_logfc_correlation_score(lfc, topn=50)
 
+    #dosage correlation
+    res_predicted_bio_rep = __get_predicted_bio_rep(formatted_test_results, adata_control, output_name)
+
     return {"key": key,
             "mse_A549": res_mse_agg['A549'],
             "mse_K562": res_mse_agg['K562'],
@@ -272,6 +310,9 @@ def get_model_stats(formatted_test_results, adata_control, output_name, gene_nam
             "top_logfc_corr_A549": res_top_logfc_corr['A549'],
             "top_logfc_corr_K562": res_top_logfc_corr['K562'],
             "top_logfc_corr_MCF7": res_top_logfc_corr['MCF7'],
+            "predicted_bio_rep_A549": res_predicted_bio_rep['A549'],
+            "predicted_bio_rep_K562": res_predicted_bio_rep['K562'],
+            "predicted_bio_rep_MCF7": res_predicted_bio_rep['MCF7'],
             }
 
 
