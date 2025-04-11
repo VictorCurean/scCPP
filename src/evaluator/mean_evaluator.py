@@ -1,105 +1,102 @@
-from torch.utils.data.dataloader import DataLoader
-from evaluator.abstract_evaluator import AbstractEvaluator
-
+import torch
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-
-class MeanEvaluator(AbstractEvaluator):
-
-    def __init__(self, sciplex_dataset_train, sciplex_dataset_test):
-
-        #load training, validation and test data in
-        self.sciplex_loader_train = DataLoader(sciplex_dataset_train,
-                                               batch_size=self.config['train_params']['batch_size'],
-                                               shuffle=True,
-                                               num_workers=0)
+from torch.utils.data.dataloader import DataLoader
+from src.dataset.dataset_unseen_compounds import SciplexDatasetUnseenPerturbations
+from src.utils import get_model_stats
 
 
-        self.sciplex_loader_test = DataLoader(sciplex_dataset_test,
-                                              batch_size=self.config['train_params']['batch_size'],
-                                              shuffle=True, num_workers=0)
+class MeanEvaluator:
 
-    def read_config(self, config_path):
+    def __init__(self,train_dataset, test_dataset):
+        self.mean_predictions = None
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        self.train_loader = self.create_dataloader(train_dataset, 16)
+        self.test_loader = self.create_dataloader(test_dataset, 16)
+
+    @staticmethod
+    def create_dataloader(dataset, batch_size):
+        return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True)
+
+    def train_with_validation(self):
         pass
 
+    def train(self):
+        results = {'ctrl_emb': [], 'pert_emb': [], 'compound': [], 'cell_type': [], 'dose': []}
+        for control, drug_emb, target, meta in tqdm(self.train_loader):
+            control, drug_emb, target = control.to(self.device), drug_emb.to(self.device), target.to(self.device)
 
-    def prepare_model(self):
-        pass
+            results['ctrl_emb'].extend(control.cpu().numpy())
+            results['pert_emb'].extend(target.cpu().numpy())
+            results['compound'].extend(meta['compound'])
+            results['cell_type'].extend(meta['cell_type'])
+            results['dose'].extend([d.item() for d in meta['dose']])
 
-    def train(self, loss_fn):
-        pass
+        train_data = pd.DataFrame(results)
+        mean_predictions = dict()
+        for cell_type in train_data['cell_type'].unique():
+            df_subset = train_data[train_data['cell_type'] == cell_type]
+            mean_predictions[cell_type] = np.mean(np.array(df_subset['pert_emb'].tolist()), axis=0)
+
+        self.mean_predictions = mean_predictions
 
 
     def test(self):
-        control_embeddings = []
-        treated_embeddings = []
-        model_output = []
-        compounds_list = []
-        cell_types_list = []
-        doses_list = []
+        results = {'ctrl_emb': [], 'pert_emb': [], 'pred_emb': [], 'compound': [], 'cell_type': [], 'dose': []}
 
-        mean_A549 = None
-        mean_K562 = None
-        mean_MCF7 = None
 
-        all_targets = list()
-        all_cell_types = list()
+        for control, drug_emb, target, meta in tqdm(self.test_loader):
+            control, drug_emb, target = control.to(self.device), drug_emb.to(self.device), target.to(self.device)
 
-        for control, drug_emb, target, meta in tqdm(self.sciplex_loader_train):
-            all_targets.extend([x for x in target])
-            all_cell_types.extend(meta['cell_type'])
 
-            for i in range(len(all_cell_types)):
-                if all_cell_types[i] == 'A549':
-                    mean_A549 += all_targets[i]
+            results['ctrl_emb'].extend(control.cpu().numpy())
+            results['pert_emb'].extend(target.cpu().numpy())
 
-                elif all_cell_types[i] == 'K562':
-                    mean_K562 += all_targets[i]
+            mean_preds = list()
+            for cell_type in meta['cell_type']:
+                mean_preds.append(self.mean_predictions[cell_type])
 
-                elif all_cell_types[i] == 'MCF7':
-                    mean_MCF7 += all_targets[i]
+            results['pred_emb'].extend(mean_preds)
+            results['compound'].extend(meta['compound'])
+            results['cell_type'].extend(meta['cell_type'])
+            results['dose'].extend([d.item() for d in meta['dose']])
 
-        mean_A549 = np.mean(mean_A549)
-        mean_K562 = np.mean(mean_K562)
-        mean_MCF7 = np.mean(mean_MCF7)
+        return pd.DataFrame(results)
 
-        for control, drug_emb, target, meta in tqdm(self.sciplex_loader_test):
-            control_emb_list = [x  for x in control]
-            treated_emb_list = [x for x in target]
+    @staticmethod
+    def objective():
+        pass
 
-            # Meta information
-            compounds = meta['compound']
-            cell_types = meta['cell_type']
-            doses = [d.item() for d in meta['dose']]
+    @staticmethod
+    def cross_validation_models(drug_splits=None, adata=None, input_name=None,
+                                output_name=None, drug_rep_name=None, drug_emb_size=None,
+                                gene_names_key=None, run_name=None):
+        output = dict()
+        for i in range(5):
+            drugs_train = drug_splits[f'drug_split_{i}']['train']
+            drugs_validation = drug_splits[f'drug_split_{i}']['valid']
+            drugs_test = drug_splits[f'drug_split_{i}']['test']
 
-            output_list = []
-            for i in range(len(cell_types)):
-                if cell_types[i] == 'A549':
-                    output_list.append(mean_A549)
-                elif cell_types[i] == 'K562':
-                    output_list.append(mean_K562)
-                elif cell_types[i] == 'MCF7':
-                    output_list.append(mean_MCF7)
+            drugs_train_final = list(drugs_train) + list(drugs_validation)
+            dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name,
+                                                                    drug_emb_size, input_name, output_name)
+            dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size,
+                                                             input_name, output_name)
 
-            # Append results to lists
-            control_embeddings.extend(control_emb_list)
-            treated_embeddings.extend(treated_emb_list)
-            model_output.extend(output_list)
-            compounds_list.extend(compounds)
-            cell_types_list.extend(cell_types)
-            doses_list.extend(doses)
 
-        # Save results into a DataFrame
-        self.test_results = pd.DataFrame({
-            "ctrl_emb": control_embeddings,
-            "pert_emb": treated_embeddings,
-            "pred_emb": model_output,
-            "compound": compounds_list,
-            "cell_type": cell_types_list,
-            "dose": doses_list
-        })
 
-    def get_test_results(self):
-        return self.test_results
+            final_ev = MeanEvaluator(dataset_train_final, dataset_test)
+            final_ev.train()
+
+            # Get model performance metrics
+            adata_control = adata[adata.obs['product_name'] == "Vehicle"]
+            gene_names = adata_control.uns[gene_names_key]
+            predictions = final_ev.test()
+
+            performance = get_model_stats(predictions, adata_control, output_name, gene_names, run_name)
+            output[i] = performance
+
+        return output
