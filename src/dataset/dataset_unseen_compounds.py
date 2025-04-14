@@ -16,11 +16,13 @@ class SciplexDatasetUnseenPerturbations(Dataset):
 
         self.adata = adata
         self.data_processed = list()
-        self.__match_control_to_treated()
-
         #convert obsm to array:
         for key in list({input_type, output_type}):
             adata.obsm[key] = adata.obsm[key].toarray()
+
+        self.__match_control_to_treated()
+
+
 
     def __len__(self):
         # Return the number of samples
