@@ -1,14 +1,10 @@
 import torch
-import pandas as pd
-import pickle as pkl
 from torch.utils.data import Dataset
-import random
+
 import numpy as np
-import math
-import anndata as ad
 import ast
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
+
 
 class SciplexDatasetUnseenPerturbations(Dataset):
     def __init__(self, adata, drug_list, sm_emb_column, sm_emb_dim, input_type, output_type):
@@ -21,6 +17,10 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         self.adata = adata
         self.data_processed = list()
         self.__match_control_to_treated()
+
+        #convert obsm to array:
+        for key in list({input_type, output_type}):
+            adata.obsm[key] = adata.obsm[key].toarray()
 
     def __len__(self):
         # Return the number of samples
