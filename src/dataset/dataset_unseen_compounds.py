@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 import numpy as np
 import ast
 from tqdm import tqdm
+from scipy.sparse import issparse
 
 
 class SciplexDatasetUnseenPerturbations(Dataset):
@@ -18,7 +19,8 @@ class SciplexDatasetUnseenPerturbations(Dataset):
         self.data_processed = list()
         #convert obsm to array:
         for key in list({input_type, output_type}):
-            adata.obsm[key] = adata.obsm[key].toarray()
+            if issparse(adata.obsm[key]):
+                adata.obsm[key] = adata.obsm[key].toarray()
 
         self.__match_control_to_treated()
 
