@@ -54,8 +54,7 @@ class PRnetEvaluator:
         if test_dataset is not None:
             self.test_loader = self.create_dataloader(test_dataset, params['batch_size'])
 
-        if {'GUSS'}.issubset(params['loss']):
-            self.criterion = nn.GaussianNLLLoss()
+        self.criterion = nn.GaussianNLLLoss()
 
         self.mse_loss = nn.MSELoss()
         self.kl_loss = nn.KLDivLoss(reduction='batchmean')
@@ -110,13 +109,13 @@ class PRnetEvaluator:
                     self.modelPGM.load_state_dict(best_model_weights)
                     return best_loss
 
-        self.model.load_state_dict(best_model_weights)
+        self.modelPGM.load_state_dict(best_model_weights)
 
         trial.set_user_attr('best_epoch', best_epoch)
         return best_loss
 
     def train(self, loss, num_epochs=None):
-        self.model.train()
+        self.modelPGM.train()
 
         for epoch in range(num_epochs):
             for control, drug_emb, target, _ in self.train_loader:
@@ -170,8 +169,8 @@ class PRnetEvaluator:
                     )
                 )
 
-                nb_sample = dist.sample()
-                y_true = target
+                nb_sample = dist.sample().cpu()
+                y_true = target.cpu()
 
                 mse_score = mean_squared_error(y_true, nb_sample)
                 validation_losses.append(mse_score)
@@ -316,16 +315,18 @@ def cross_validation_models(drug_splits=None, loss=None, adata=None, input_name=
 
         optimal_params['input_dim'] = input_dim
         optimal_params['output_dim'] = output_dim
-        optimal_params['drug_dim'] = drug_emb_size
         optimal_params['scheduler_mode'] = scheduler_mode
-        optimal_params['batch_size']=  512,
-        optimal_params['hidden_dims']= [128],
-        optimal_params['hidden_dims_adapter'] = [128],
-        optimal_params['drug_latent_dim'] = 64,
-        optimal_params['agg_latent_dim'] = 64,
-        optimal_params['comb_num'] = 1,
-        optimal_params['model_patience'] = 20,
+        optimal_params['drug_dimension'] = drug_emb_size
+
+        optimal_params['batch_size']=  512
+        optimal_params['hidden_dims']= [128]
+        optimal_params['hidden_dims_adapter'] = [128]
+        optimal_params['drug_latent_dim'] = 64
+        optimal_params['agg_latent_dim'] = 64
+        optimal_params['comb_num'] = 1
+        optimal_params['model_patience'] = 20
         optimal_params['max_epochs'] = 100
+
 
 
         final_ev = PRnetEvaluator(dataset_train_final, None, dataset_test, optimal_params)

@@ -61,7 +61,6 @@ class PGM(nn.Module):
         super().__init__()
         assert isinstance(hidden_layer_sizes, list)
         assert isinstance(agg_latent_dim, int)
-        print("\nINITIALIZING NEW NETWORK..............")
 
         self.x_dim = gene_vector_dim   #Gene expression vector length
         self.c_dim = drug_latent_dim   #Chemical structure latent embedding

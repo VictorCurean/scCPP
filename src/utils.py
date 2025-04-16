@@ -21,7 +21,13 @@ def format_test_results(test_results_raw):
 
     return test_results_formatted
 
-#dist_functions
+def clamp_negative_values(df, col_name):
+    df = df.copy()  # avoid modifying the original DataFrame
+    df[col_name] = df[col_name].apply(
+        lambda arr: [x if x > 0 else 0 for x in arr]
+    )
+    return df
+
 
 def __get_edistance(X, Y):
     """
@@ -114,6 +120,10 @@ def __get_results__fc(results, adata_control, obsm_key, gene_names):
     """
     Get fold changes results
     """
+
+    #clamp negative values in predicted values
+    results = clamp_negative_values(results, 'pred_emb')
+
 
     # create adata control
     adata_ctrl = ad.AnnData(adata_control.obsm[obsm_key])
