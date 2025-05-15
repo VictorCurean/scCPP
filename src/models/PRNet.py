@@ -131,14 +131,11 @@ class PEncoder(nn.Module):
         # encoder architecture
         self.FC = None
         if len(layer_sizes) > 1:
-            print("Encoder Architecture:")
             self.FC = nn.Sequential()
             for i, (in_size, out_size) in enumerate(zip(layer_sizes[:-1], layer_sizes[1:])):
                 if i == 0:
-                    print("\tInput Layer in, out:", in_size, out_size)
                     self.FC.add_module(name="L{:d}".format(i), module=nn.Linear(in_size, out_size, bias=False))
                 else:
-                    print("\tHidden Layer", i, "in/out:", in_size, out_size)
                     self.FC.add_module(name="L{:d}".format(i), module=nn.Linear(in_size, out_size))
                     self.FC.add_module("N{:d}".format(i), module=nn.BatchNorm1d(out_size))
                     self.FC.add_module(name="A{:d}".format(i), module=nn.LeakyReLU(negative_slope=0.3))
@@ -146,7 +143,6 @@ class PEncoder(nn.Module):
 
         # self.FC = nn.ModuleList(self.FC)
 
-        print("\tMean/Var Layer in/out:", layer_sizes[-1], z_dimension)
         self.mean_encoder = nn.Linear(layer_sizes[-1], z_dimension)
 
     def forward(self, x: torch.Tensor):
@@ -167,10 +163,8 @@ class PDecoder(nn.Module):
 
         layer_sizes = [z_dimension] + layer_sizes
         # decoder architecture
-        print("Decoder Architecture:")
         # Create first Decoder layer
         self.FirstL = nn.Sequential()
-        print("\tFirst Layer in, out", layer_sizes[0], layer_sizes[1])
         self.FirstL.add_module(name="L0", module=nn.Linear(layer_sizes[0], layer_sizes[1], bias=False))
         self.FirstL.add_module("N0", module=nn.BatchNorm1d(layer_sizes[1]))
         self.FirstL.add_module(name="A0", module=nn.LeakyReLU(negative_slope=0.3))
@@ -181,7 +175,6 @@ class PDecoder(nn.Module):
             self.HiddenL = nn.Sequential()
             for i, (in_size, out_size) in enumerate(zip(layer_sizes[1:-1], layer_sizes[2:])):
                 if i + 3 < len(layer_sizes):
-                    print("\tHidden Layer", i + 1, "in/out:", in_size, out_size)
                     self.HiddenL.add_module(name="L{:d}".format(i + 1), module=nn.Linear(in_size, out_size, bias=False))
                     self.HiddenL.add_module("N{:d}".format(i + 1), module=nn.BatchNorm1d(out_size, affine=True))
                     self.HiddenL.add_module(name="A{:d}".format(i + 1), module=nn.LeakyReLU(negative_slope=0.3))
@@ -190,7 +183,6 @@ class PDecoder(nn.Module):
             self.HiddenL = None
 
         # Create Output Layers
-        print("\tOutput Layer in/out: ", layer_sizes[-2], layer_sizes[-1], "\n")
         self.recon_decoder = nn.Sequential(nn.Linear(layer_sizes[-2], layer_sizes[-1]))
         self.relu = nn.ReLU()
 
@@ -222,20 +214,16 @@ class PAdaptor(nn.Module):
         # encoder architecture
         self.FC = None
         if len(layer_sizes) > 1:
-            print("Encoder Architecture:")
             self.FC = nn.Sequential()
             for i, (in_size, out_size) in enumerate(zip(layer_sizes[:-1], layer_sizes[1:])):
                 if i == 0:
-                    print("\tInput Layer in, out:", in_size, out_size)
                     self.FC.add_module(name="L{:d}".format(i), module=nn.Linear(in_size, out_size, bias=False))
                 else:
-                    print("\tHidden Layer", i, "in/out:", in_size, out_size)
                     self.FC.add_module(name="L{:d}".format(i), module=nn.Linear(in_size, out_size))
                     self.FC.add_module("N{:d}".format(i), module=nn.BatchNorm1d(out_size))
                     self.FC.add_module(name="A{:d}".format(i), module=nn.LeakyReLU(negative_slope=0.3))
                     self.FC.add_module(name="D{:d}".format(i), module=nn.Dropout(p=dropout_rate))
 
-        print("\tComb Layer in/out:", layer_sizes[-1], comb_dimension)
         self.comb_encoder = nn.Linear(layer_sizes[-1], comb_dimension)
 
     def forward(self, x: torch.Tensor):

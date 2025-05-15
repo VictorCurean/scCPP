@@ -95,6 +95,7 @@ class PRnetEvaluator:
                 self.optimizer.step()
 
             validation_loss = self.validate(loss)
+            print("Epoch:", epoch, "\t Validation Loss:", validation_loss)
             trial.report(validation_loss, epoch)
 
             if validation_loss < best_loss:
@@ -154,7 +155,6 @@ class PRnetEvaluator:
                 gene_vars = gene_reconstructions[:, dim:]
                 gene_vars = F.softplus(gene_vars)
 
-                reconstruction_loss = self.criterion(input=gene_means, target=target, var=gene_vars)
 
                 dist = normal.Normal(
                     torch.clamp(
@@ -249,12 +249,17 @@ class PRnetEvaluator:
 def objective(trial, dataset_train=None, dataset_validation=None,
               input_dim=0, output_dim=0, drug_dim=0, scheduler_mode='min', loss=None):
 
-    lr = trial.suggest_float('lr', 1e-6, 1e-3, log=True)
-    weight_decay = trial.suggest_float('weight_decay', 1e-8, 1e-6, log=True)
-    scheduler_factor = trial.suggest_float('scheduler_factor', 0.2, 0.8, log=False)
-    scheduler_patience = trial.suggest_int('scheduler_patience', 1, 20,)
-    dropout = trial.suggest_float('dropout', 0.01, 0.15, log=False)
+    # lr = trial.suggest_float('lr', 1e-6, 1e-3, log=True)
+    # weight_decay = trial.suggest_float('weight_decay', 1e-8, 1e-6, log=True)
+    # scheduler_factor = trial.suggest_float('scheduler_factor', 0.2, 0.8, log=False)
+    # scheduler_patience = trial.suggest_int('scheduler_patience', 1, 20,)
+    # dropout = trial.suggest_float('dropout', 0.01, 0.15, log=False)
 
+    lr =  1e-3
+    weight_decay = 1e-8
+    scheduler_factor = 0.5
+    scheduler_patience = 5
+    dropout = 0.05
 
 
     params = {
