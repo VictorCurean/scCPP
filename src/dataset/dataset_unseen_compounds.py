@@ -8,19 +8,16 @@ from scipy.sparse import issparse
 
 
 class SciplexDatasetUnseenPerturbations(Dataset):
-    def __init__(self, adata, drug_list, sm_emb_column, sm_emb_dim, input_type, output_type):
+    def __init__(self, adata, drug_list, sm_emb_column, sm_emb_dim):
         self.drug_list = drug_list
         self.sm_emb_dim = sm_emb_dim # dimension of the drug embedding used
         self.sm_emb_column = sm_emb_column #column of the sm_emb used
-        self.input_type = input_type # type of input (gene expression / scFM embedding)
-        self.output_type = output_type # type of output (gene expression / scFM embedding / pathway activation)
 
         self.adata = adata
         self.data_processed = list()
-        #convert obsm to array:
-        for key in list({input_type, output_type}):
-            if issparse(adata.obsm[key]):
-                adata.obsm[key] = adata.obsm[key].toarray()
+
+        if issparse(adata.X):
+            adata.X = adata.X.toarray()
 
         self.__match_control_to_treated()
 
@@ -44,11 +41,11 @@ class SciplexDatasetUnseenPerturbations(Dataset):
                 continue
 
             idx_position = self.adata.obs.index.get_loc(idx)
-            cell_vector = self.adata.obsm[self.output_type][idx_position]
+            cell_vector = self.adata.X[idx_position]
 
             matched_control_index = cell_meta['match_index']
             idx_position_match = self.adata.obs.index.get_loc(matched_control_index)
-            matched_control = self.adata.obsm[self.input_type][idx_position_match]
+            matched_control = self.adata.X[idx_position_match]
 
             #get drug embedding
             drug_emb = ast.literal_eval(cell_meta[self.sm_emb_column])
