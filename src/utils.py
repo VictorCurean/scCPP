@@ -75,6 +75,9 @@ def __get_model_performance_aggregated(formatted_test_results, dist_func):
                 X_pert = np.array(df_subset['pert_emb'].tolist())
                 X_pred = np.array(df_subset['pred_emb'].tolist())
 
+                if X_pert.size == 0:
+                    continue #Skip if condition subset is not present (due to qc)
+
                 dist = dist_func(X_pert, X_pred)
                 results_per_cell.append(dist)
 
@@ -299,7 +302,7 @@ def get_model_stats(formatted_test_results, adata_control, gene_names, key):
     res_top_logfc_corr = __get_top_logfc_correlation_score(lfc, topn=50)
 
     #dosage correlation
-    res_predicted_bio_rep = __get_predicted_bio_rep(formatted_test_results, adata_control)
+    #res_predicted_bio_rep = __get_predicted_bio_rep(formatted_test_results, adata_control)
 
     return {"key": key,
             "mse_A549": res_mse_agg['A549'],
@@ -320,9 +323,9 @@ def get_model_stats(formatted_test_results, adata_control, gene_names, key):
             "top_logfc_corr_A549": res_top_logfc_corr['A549'],
             "top_logfc_corr_K562": res_top_logfc_corr['K562'],
             "top_logfc_corr_MCF7": res_top_logfc_corr['MCF7'],
-            "predicted_bio_rep_A549": res_predicted_bio_rep['A549'],
-            "predicted_bio_rep_K562": res_predicted_bio_rep['K562'],
-            "predicted_bio_rep_MCF7": res_predicted_bio_rep['MCF7'],
+            # "predicted_bio_rep_A549": res_predicted_bio_rep['A549'],
+            # "predicted_bio_rep_K562": res_predicted_bio_rep['K562'],
+            # "predicted_bio_rep_MCF7": res_predicted_bio_rep['MCF7'],
             }
 
 
