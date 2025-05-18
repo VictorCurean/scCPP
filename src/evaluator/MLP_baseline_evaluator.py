@@ -158,8 +158,8 @@ def objective(trial, dataset_train=None, dataset_validation=None,
 
     return ev.train_with_validation(loss_fn, trial)
 
-def get_models_results(drug_splits=None, loss_function=None, adata=None, input_name=None, input_dim=None,
-                            output_name=None, output_dim=None, drug_rep_name=None, drug_emb_size=None, n_trials=None,
+def get_models_results(drug_splits=None, loss_function=None, adata=None, input_dim=None,
+                            output_dim=None, drug_rep_name=None, drug_emb_size=None, n_trials=None,
                             scheduler_mode=None, run_name=None, save_path=None):
 
     drugs_train = drug_splits['train']
@@ -167,8 +167,8 @@ def get_models_results(drug_splits=None, loss_function=None, adata=None, input_n
     drugs_test = drug_splits['test']
 
     #Optimize Hyperparamteres
-    dataset_train = SciplexDatasetUnseenPerturbations(adata, drugs_train, drug_rep_name, drug_emb_size, input_name, output_name)
-    dataset_validation = SciplexDatasetUnseenPerturbations(adata, drugs_validation, drug_rep_name, drug_emb_size, input_name, output_name)
+    dataset_train = SciplexDatasetUnseenPerturbations(adata, drugs_train, drug_rep_name, drug_emb_size,)
+    dataset_validation = SciplexDatasetUnseenPerturbations(adata, drugs_validation, drug_rep_name, drug_emb_size,)
 
     study = optuna.create_study(direction='minimize', study_name=f"{run_name}_fold{i}", storage="sqlite:///optuna_study.db", load_if_exists=True)
     study.optimize(lambda trial: objective(trial,
@@ -185,8 +185,8 @@ def get_models_results(drug_splits=None, loss_function=None, adata=None, input_n
     #Retrain the model on validation + train set with the best parameters
     drugs_train_final = list(drugs_train) + list(drugs_validation)
 
-    dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name, drug_emb_size, input_name, output_name)
-    dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size, input_name, output_name)
+    dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name, drug_emb_size)
+    dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size)
 
     optimal_params['input_dim'] = input_dim
     optimal_params['output_dim'] = output_dim
