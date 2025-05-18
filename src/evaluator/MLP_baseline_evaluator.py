@@ -4,6 +4,7 @@ import torch
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+import pickle as pkl
 from torch.utils.data.dataloader import DataLoader
 
 from src.models.MLP_concat import MLPModel
@@ -157,54 +158,47 @@ def objective(trial, dataset_train=None, dataset_validation=None,
 
     return ev.train_with_validation(loss_fn, trial)
 
-def cross_validation_models(drug_splits=None, loss_function=None, adata=None, input_name=None, input_dim=None,
+def get_models_results(drug_splits=None, loss_function=None, adata=None, input_name=None, input_dim=None,
                             output_name=None, output_dim=None, drug_rep_name=None, drug_emb_size=None, n_trials=None,
-                            gene_names_key=None, scheduler_mode=None, run_name=None):
-    output = dict()
-    for i in range(5):
-        drugs_train = drug_splits[f'drug_split_{i}']['train']
-        drugs_validation = drug_splits[f'drug_split_{i}']['valid']
-        drugs_test = drug_splits[f'drug_split_{i}']['test']
+                            scheduler_mode=None, run_name=None, save_path=None):
 
-        #Optimize Hyperparamteres
+    drugs_train = drug_splits['train']
+    drugs_validation = drug_splits['valid']
+    drugs_test = drug_splits['test']
 
-        dataset_train = SciplexDatasetUnseenPerturbations(adata, drugs_train, drug_rep_name, drug_emb_size, input_name, output_name)
-        dataset_validation = SciplexDatasetUnseenPerturbations(adata, drugs_validation, drug_rep_name, drug_emb_size, input_name, output_name)
+    #Optimize Hyperparamteres
+    dataset_train = SciplexDatasetUnseenPerturbations(adata, drugs_train, drug_rep_name, drug_emb_size, input_name, output_name)
+    dataset_validation = SciplexDatasetUnseenPerturbations(adata, drugs_validation, drug_rep_name, drug_emb_size, input_name, output_name)
 
-        study = optuna.create_study(direction='minimize', study_name=f"{run_name}_fold{i}", storage="sqlite:///optuna_study.db", load_if_exists=True)
-        study.optimize(lambda trial: objective(trial,
-                                               dataset_train=dataset_train, dataset_validation=dataset_validation,
-                                               input_dim=input_dim, output_dim=output_dim,
-                                               drug_dim=drug_emb_size, loss_fn=loss_function), n_trials=n_trials)
-        best_trial = study.best_trial
-        optimal_params = best_trial.params
-        best_epoch = best_trial.user_attrs["best_epoch"]
+    study = optuna.create_study(direction='minimize', study_name=f"{run_name}_fold{i}", storage="sqlite:///optuna_study.db", load_if_exists=True)
+    study.optimize(lambda trial: objective(trial,
+                                           dataset_train=dataset_train, dataset_validation=dataset_validation,
+                                           input_dim=input_dim, output_dim=output_dim,
+                                           drug_dim=drug_emb_size, loss_fn=loss_function), n_trials=n_trials)
+    best_trial = study.best_trial
+    optimal_params = best_trial.params
+    best_epoch = best_trial.user_attrs["best_epoch"]
 
-        del dataset_train
-        del dataset_validation
+    del dataset_train
+    del dataset_validation
 
-        #Retrain the model on validation + train set with the best parameters
-        drugs_train_final = list(drugs_train) + list(drugs_validation)
+    #Retrain the model on validation + train set with the best parameters
+    drugs_train_final = list(drugs_train) + list(drugs_validation)
 
-        dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name, drug_emb_size, input_name, output_name)
-        dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size, input_name, output_name)
+    dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name, drug_emb_size, input_name, output_name)
+    dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size, input_name, output_name)
 
-        optimal_params['input_dim'] = input_dim
-        optimal_params['output_dim'] = output_dim
-        optimal_params['drug_dim'] = drug_emb_size
-        optimal_params['scheduler_mode'] = scheduler_mode
-        optimal_params['hidden_dims'] = (optimal_params['hidden_dims'],)
+    optimal_params['input_dim'] = input_dim
+    optimal_params['output_dim'] = output_dim
+    optimal_params['drug_dim'] = drug_emb_size
+    optimal_params['scheduler_mode'] = scheduler_mode
+    optimal_params['hidden_dims'] = (optimal_params['hidden_dims'],)
 
-        final_ev = MLPBaselineEvaluator(dataset_train_final, None, dataset_test, optimal_params)
-        final_ev.train(loss_function, num_epochs=best_epoch)
+    final_ev = MLPBaselineEvaluator(dataset_train_final, None, dataset_test, optimal_params)
+    final_ev.train(loss_function, num_epochs=best_epoch)
 
+    #Get model performance metrics
+    predictions = final_ev.test()
 
-        #Get model performance metrics
-        adata_control = adata[adata.obs['product_name'] == "Vehicle"]
-        gene_names = adata_control.uns[gene_names_key]
-        predictions = final_ev.test()
-
-        performance = get_model_stats(predictions, adata_control, output_name, gene_names, run_name)
-        output[i] = performance
-
-    return output
+    with open(save_path, 'wb') as f:
+        pkl.dump(predictions, f)
