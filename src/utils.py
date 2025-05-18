@@ -82,7 +82,7 @@ def __get_model_performance_aggregated(formatted_test_results, dist_func):
 
     return results
 
-def __get_predicted_bio_rep(formatted_test_results, control_adata, output_name):
+def __get_predicted_bio_rep(formatted_test_results, control_adata):
     """
     Get the Spearman correlation between the distances of predicted-control values and incremental dosages
     """
@@ -91,7 +91,7 @@ def __get_predicted_bio_rep(formatted_test_results, control_adata, output_name):
     for cell_type in formatted_test_results['cell_type'].unique():
         results_per_cell = list()
         adata_control_subset = control_adata[control_adata.obs['cell_type'] == cell_type]
-        x_control = np.mean(adata_control_subset.obsm[output_name], axis=0)
+        x_control = np.mean(adata_control_subset.X, axis=0)
 
         for compound in formatted_test_results['compound'].unique():
             distances = list()
@@ -276,7 +276,7 @@ def __get_logFC_rank_score(res_logfc_full):
         results[cell_type] = np.mean(scores)
     return results
 
-def get_model_stats(formatted_test_results, adata_control, output_name, gene_names, key):
+def get_model_stats(formatted_test_results, adata_control, gene_names, key):
 
     #aggregated MSE
     res_mse_agg = __get_model_performance_aggregated(formatted_test_results, __get_mse)
@@ -287,7 +287,7 @@ def get_model_stats(formatted_test_results, adata_control, output_name, gene_nam
     #aggregated E-distance
     res_edistance_agg = __get_model_performance_aggregated(formatted_test_results, __get_edistance)
 
-    lfc = __get_results__fc(formatted_test_results, adata_control, output_name, gene_names)
+    lfc = __get_results__fc(formatted_test_results, adata_control, gene_names)
 
     #rank all logFC
     res_rank_logfc = __get_logFC_rank_score(lfc)
@@ -299,7 +299,7 @@ def get_model_stats(formatted_test_results, adata_control, output_name, gene_nam
     res_top_logfc_corr = __get_top_logfc_correlation_score(lfc, topn=50)
 
     #dosage correlation
-    res_predicted_bio_rep = __get_predicted_bio_rep(formatted_test_results, adata_control, output_name)
+    res_predicted_bio_rep = __get_predicted_bio_rep(formatted_test_results, adata_control)
 
     return {"key": key,
             "mse_A549": res_mse_agg['A549'],
