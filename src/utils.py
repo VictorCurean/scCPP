@@ -116,7 +116,7 @@ def __get_predicted_bio_rep(formatted_test_results, control_adata, output_name):
 
 
 
-def __get_results__fc(results, adata_control, obsm_key, gene_names):
+def __get_results__fc(results, adata_control, gene_names):
     """
     Get fold changes results
     """
@@ -126,7 +126,7 @@ def __get_results__fc(results, adata_control, obsm_key, gene_names):
 
 
     # create adata control
-    adata_ctrl = ad.AnnData(adata_control.obsm[obsm_key])
+    adata_ctrl = ad.AnnData(adata_control.X.toarray())
     adata_ctrl.obs['cell_type'] = list(adata_control.obs['cell_type'])
     adata_ctrl.obs['compound'] = list(adata_control.obs['product_name'])
     adata_ctrl.obs['dose'] = 0
