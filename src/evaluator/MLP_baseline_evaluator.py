@@ -61,6 +61,7 @@ class MLPBaselineEvaluator():
                 self.optimizer.step()
 
             validation_loss = self.validate(loss_fn)
+            print("Epoch:\t", epoch, "Val Loss:\t", validation_loss)
             trial.report(validation_loss, epoch)
 
             if validation_loss < best_loss:
@@ -162,6 +163,8 @@ def get_models_results(drug_splits=None, loss_function=None, adata=None, input_d
                             output_dim=None, drug_rep_name=None, drug_emb_size=None, n_trials=None,
                             scheduler_mode=None, run_name=None, save_path=None):
 
+    print("Loading Datasets ...")
+
     drugs_train = drug_splits['train']
     drugs_validation = drug_splits['valid']
     drugs_test = drug_splits['test']
@@ -170,7 +173,9 @@ def get_models_results(drug_splits=None, loss_function=None, adata=None, input_d
     dataset_train = SciplexDatasetUnseenPerturbations(adata, drugs_train, drug_rep_name, drug_emb_size,)
     dataset_validation = SciplexDatasetUnseenPerturbations(adata, drugs_validation, drug_rep_name, drug_emb_size,)
 
-    study = optuna.create_study(direction='minimize', study_name=f"{run_name}_fold{i}", storage="sqlite:///optuna_study.db", load_if_exists=True)
+    print("Optimizing Hyperparameters with Optuna ...")
+
+    study = optuna.create_study(direction='minimize', study_name=run_name, storage="sqlite:///optuna_study.db", load_if_exists=True)
     study.optimize(lambda trial: objective(trial,
                                            dataset_train=dataset_train, dataset_validation=dataset_validation,
                                            input_dim=input_dim, output_dim=output_dim,
@@ -181,6 +186,8 @@ def get_models_results(drug_splits=None, loss_function=None, adata=None, input_d
 
     del dataset_train
     del dataset_validation
+
+    print("Training model with best parameters on train+validation ...")
 
     #Retrain the model on validation + train set with the best parameters
     drugs_train_final = list(drugs_train) + list(drugs_validation)
@@ -196,6 +203,8 @@ def get_models_results(drug_splits=None, loss_function=None, adata=None, input_d
 
     final_ev = MLPBaselineEvaluator(dataset_train_final, None, dataset_test, optimal_params)
     final_ev.train(loss_function, num_epochs=best_epoch)
+
+    print("Getting test set predictions and saving results ...")
 
     #Get model performance metrics
     predictions = final_ev.test()
