@@ -53,10 +53,10 @@ def train_different_normalization(adata_path, run_name, res_savename, stats_save
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train and evaluate model with different normalization strategies.")
-    parser.add_argument("adata_path", type=str, help="Path to the .h5ad data file.")
-    parser.add_argument("run_name", type=str, help="Name for the run")
-    parser.add_argument("res_savename", type=str, help="Path to save raw results (pickle).")
-    parser.add_argument("stats_savename", type=str, help="Path to save statistics (pickle).")
+    parser.add_argument("--adata_path", type=str, help="Path to the .h5ad data file.")
+    parser.add_argument("--run_name", type=str, help="Name for the run")
+    parser.add_argument("--res_savename", type=str, help="Path to save raw results (pickle).")
+    parser.add_argument("--stats_savename", type=str, help="Path to save statistics (pickle).")
 
     args = parser.parse_args()
 
