@@ -133,13 +133,13 @@ class MLPBaselineEvaluator():
 def objective(trial, dataset_train=None, dataset_validation=None,
               input_dim=0, output_dim=0, drug_dim=0, scheduler_mode='min', loss_fn=None):
 
-    lr = trial.suggest_float('lr', 1e-6, 1e-3, log=True)
-    weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-2, log=True)
-    scheduler_factor = trial.suggest_float('scheduler_factor', 0.1, 0.5, log=False)
-    scheduler_patience = trial.suggest_int('scheduler_patience', 1, 20,)
+    lr = trial.suggest_categorical('lr', [1e-6, 1e-5, 1e-4, 1e-3])
+    weight_decay = trial.suggest_categorical('weight_decay', [1e-6, 1e-5, 1e-4, 1e-3])
+    scheduler_factor = trial.suggest_categorical('scheduler_factor', [0.1, 0.3, 0.5, 0.8])
+    scheduler_patience = trial.suggest_categorical('scheduler_patience', [1, 5, 10, 20])
     batch_size = trial.suggest_categorical('batch_size', [16, 32, 64, 128, 256])
-    dropout = trial.suggest_float('dropout', 0.05, 0.3, log=False)
-    hidden_dims = trial.suggest_categorical('hidden_dims', [64, 128, 256, 512, 1024, 2048, 4096])
+    dropout = trial.suggest_categorical('dropout', [0.05, 0.1, 0.15, 0.2])
+    hidden_dims = trial.suggest_categorical('hidden_dims', [64, 128, 256, 512, 1024])
 
 
     params = {
