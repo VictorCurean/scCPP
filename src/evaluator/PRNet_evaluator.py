@@ -66,13 +66,13 @@ class PRnetEvaluator:
         return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True)
 
     def train_with_validation(self, loss, trial):
-        self.modelPGM.train()
         best_model_weights = self.model.state_dict()
         best_loss = float('inf')
         best_epoch = -1
         epochs_without_improvement = 0
 
         for epoch in range(self.max_epochs):
+            self.modelPGM.train()
             for control, drug_emb, target, _ in self.train_loader:
                 control, drug_emb, target = control.to(self.device), drug_emb.to(self.device), target.to(self.device)
 
@@ -94,7 +94,7 @@ class PRnetEvaluator:
                 # Update PGM
                 self.optimizer.step()
 
-            validation_loss = self.validate(loss)
+            validation_loss = self.validate()
             print("Epoch:", epoch, "\t Validation Loss:", validation_loss)
             trial.report(validation_loss, epoch)
 
@@ -115,12 +115,14 @@ class PRnetEvaluator:
         trial.set_user_attr('best_epoch', best_epoch)
         return best_loss
 
-    def train(self, loss, num_epochs=None):
+    def train(self, num_epochs=None):
         self.modelPGM.train()
-
         for epoch in range(num_epochs):
             for control, drug_emb, target, _ in self.train_loader:
+
                 control, drug_emb, target = control.to(self.device), drug_emb.to(self.device), target.to(self.device)
+
+                self.optimizer.zero_grad()
 
                 b_size = control.size(0)
                 noise = self.__make_noise(b_size, 10)
@@ -139,7 +141,7 @@ class PRnetEvaluator:
                 self.optimizer.step()
 
 
-    def validate(self, loss):
+    def validate(self):
         self.modelPGM.eval()
         validation_losses = []
 
@@ -249,17 +251,13 @@ class PRnetEvaluator:
 def objective(trial, dataset_train=None, dataset_validation=None,
               input_dim=0, output_dim=0, drug_dim=0, scheduler_mode='min', loss=None):
 
-    # lr = trial.suggest_float('lr', 1e-6, 1e-3, log=True)
-    # weight_decay = trial.suggest_float('weight_decay', 1e-8, 1e-6, log=True)
-    # scheduler_factor = trial.suggest_float('scheduler_factor', 0.2, 0.8, log=False)
-    # scheduler_patience = trial.suggest_int('scheduler_patience', 1, 20,)
-    # dropout = trial.suggest_float('dropout', 0.01, 0.15, log=False)
+    lr = trial.suggest_categorical('lr', [1e-6, 1e-5, 1e-4, 1e-3])
+    weight_decay = trial.suggest_categorical('weight_decay', [1e-6, 1e-5, 1e-4, 1e-3])
+    scheduler_factor = trial.suggest_categorical('scheduler_factor', [0.1, 0.3, 0.5, 0.8])
+    scheduler_patience = trial.suggest_categorical('scheduler_patience', [1, 5, 10, 20])
+    batch_size = trial.suggest_categorical('batch_size', [16, 32, 64, 128, 256, 512])
+    dropout = trial.suggest_categorical('dropout', [0.05, 0.1, 0.15, 0.2])
 
-    lr =  1e-3
-    weight_decay = 1e-8
-    scheduler_factor = 0.5
-    scheduler_patience = 5
-    dropout = 0.05
 
 
     params = {
@@ -272,7 +270,7 @@ def objective(trial, dataset_train=None, dataset_validation=None,
         'weight_decay': weight_decay,
         'scheduler_factor': scheduler_factor,
         'scheduler_patience': scheduler_patience,
-        'batch_size': 512,
+        'batch_size': batch_size,
         'hidden_dims' : [128],
         'hidden_dims_adapter': [128],
         'drug_latent_dim': 64,
@@ -287,64 +285,63 @@ def objective(trial, dataset_train=None, dataset_validation=None,
 
     return ev.train_with_validation(loss, trial)
 
-def cross_validation_models(drug_splits=None, loss=None, adata=None, input_name=None, input_dim=None,
-                            output_name=None, output_dim=None, drug_rep_name=None, drug_emb_size=None, n_trials=None,
-                            gene_names_key=None, scheduler_mode=None, run_name=None):
-    output = dict()
-    for i in range(5):
-        drugs_train = drug_splits[f'drug_split_{i}']['train']
-        drugs_validation = drug_splits[f'drug_split_{i}']['valid']
-        drugs_test = drug_splits[f'drug_split_{i}']['test']
+def get_models_results(drug_splits=None, loss=None, adata=None, input_dim=None,
+                            output_dim=None, drug_rep_name=None, drug_emb_size=None, n_trials=None,
+                            scheduler_mode=None, run_name=None):
 
-        #Optimize Hyperparamteres
-        dataset_train = SciplexDatasetUnseenPerturbations(adata, drugs_train, drug_rep_name, drug_emb_size, input_name, output_name)
-        dataset_validation = SciplexDatasetUnseenPerturbations(adata, drugs_validation, drug_rep_name, drug_emb_size, input_name, output_name)
+    print("Loading Datasets ...")
 
-        study = optuna.create_study(direction='minimize', study_name=f"{run_name}_fold{i}", storage="sqlite:///optuna_study.db", load_if_exists=True)
-        study.optimize(lambda trial: objective(trial,
-                                               dataset_train=dataset_train, dataset_validation=dataset_validation,
-                                               input_dim=input_dim, output_dim=output_dim,
-                                               drug_dim=drug_emb_size, loss=loss), n_trials=n_trials)
-        best_trial = study.best_trial
-        optimal_params = best_trial.params
-        best_epoch = best_trial.user_attrs["best_epoch"]
+    drugs_train = drug_splits['train']
+    drugs_validation = drug_splits['valid']
+    drugs_test = drug_splits['test']
 
-        del dataset_train
-        del dataset_validation
+    dataset_train = SciplexDatasetUnseenPerturbations(adata, drugs_train, drug_rep_name, drug_emb_size)
+    dataset_validation = SciplexDatasetUnseenPerturbations(adata, drugs_validation, drug_rep_name, drug_emb_size)
 
-        #Retrain the model on validation + train set with the best parameters
-        drugs_train_final = list(drugs_train) + list(drugs_validation)
+    print("Optimizing Hyperparameters with Optuna ...")
 
-        dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name, drug_emb_size, input_name, output_name)
-        dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size, input_name, output_name)
+    study = optuna.create_study(direction='minimize', study_name=run_name, storage="sqlite:///optuna_study.db", load_if_exists=True)
+    study.optimize(lambda trial: objective(trial,
+                                           dataset_train=dataset_train, dataset_validation=dataset_validation,
+                                           input_dim=input_dim, output_dim=output_dim,
+                                           drug_dim=drug_emb_size, loss=loss), n_trials=n_trials)
+    best_trial = study.best_trial
+    optimal_params = best_trial.params
+    best_epoch = best_trial.user_attrs["best_epoch"]
 
-        optimal_params['input_dim'] = input_dim
-        optimal_params['output_dim'] = output_dim
-        optimal_params['scheduler_mode'] = scheduler_mode
-        optimal_params['drug_dimension'] = drug_emb_size
+    print("Training model with best parameters on train+validation ...")
 
-        optimal_params['batch_size']=  512
-        optimal_params['hidden_dims']= [128]
-        optimal_params['hidden_dims_adapter'] = [128]
-        optimal_params['drug_latent_dim'] = 64
-        optimal_params['agg_latent_dim'] = 64
-        optimal_params['comb_num'] = 1
-        optimal_params['model_patience'] = 20
-        optimal_params['max_epochs'] = 100
+    del dataset_train
+    del dataset_validation
 
+    #Retrain the model on validation + train set with the best parameters
+    drugs_train_final = list(drugs_train) + list(drugs_validation)
 
+    dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name, drug_emb_size)
+    dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size)
 
-        final_ev = PRnetEvaluator(dataset_train_final, None, dataset_test, optimal_params)
-        final_ev.train(loss, num_epochs=best_epoch)
+    optimal_params['input_dim'] = input_dim
+    optimal_params['output_dim'] = output_dim
+    optimal_params['scheduler_mode'] = scheduler_mode
+    optimal_params['drug_dimension'] = drug_emb_size
 
+    optimal_params['batch_size']=  512
+    optimal_params['hidden_dims']= [128]
+    optimal_params['hidden_dims_adapter'] = [128]
+    optimal_params['drug_latent_dim'] = 64
+    optimal_params['agg_latent_dim'] = 64
+    optimal_params['comb_num'] = 1
+    optimal_params['model_patience'] = 20
+    optimal_params['max_epochs'] = 100
 
-        #Get model performance metrics
-        adata_control = adata[adata.obs['product_name'] == "Vehicle"]
-        gene_names = adata_control.uns[gene_names_key]
-        predictions = final_ev.test()
+    final_ev = PRnetEvaluator(dataset_train_final, None, dataset_test, optimal_params)
+    final_ev.train(loss, num_epochs=best_epoch)
 
-        performance = get_model_stats(predictions, adata_control, output_name, gene_names, run_name)
-        output[i] = performance
+    print("Getting test set predictions and saving results ...")
 
-    return output
+    predictions = final_ev.test()
+
+    with open(save_path, 'wb') as f:
+        pkl.dump(predictions, f)
+
 

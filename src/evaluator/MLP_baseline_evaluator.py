@@ -52,6 +52,7 @@ class MLPBaselineEvaluator():
         epochs_without_improvement = 0
 
         for epoch in range(self.max_epochs):
+            self.model.train()
             for control, drug_emb, target, _ in self.train_loader:
                 control, drug_emb, target = control.to(self.device), drug_emb.to(self.device), target.to(self.device)
 
