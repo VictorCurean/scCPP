@@ -56,9 +56,6 @@ class PRnetEvaluator:
 
         self.criterion = nn.GaussianNLLLoss()
 
-        self.mse_loss = nn.MSELoss()
-        self.kl_loss = nn.KLDivLoss(reduction='batchmean')
-
 
 
     @staticmethod
@@ -66,7 +63,7 @@ class PRnetEvaluator:
         return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True)
 
     def train_with_validation(self, loss, trial):
-        best_model_weights = self.model.state_dict()
+        best_model_weights = self.modelPGM.state_dict()
         best_loss = float('inf')
         best_epoch = -1
         epochs_without_improvement = 0
@@ -96,6 +93,7 @@ class PRnetEvaluator:
 
             validation_loss = self.validate()
             print("Epoch:", epoch, "\t Validation Loss:", validation_loss)
+            self.scheduler.step(avg_loss)
             trial.report(validation_loss, epoch)
 
             if validation_loss < best_loss:
@@ -178,7 +176,6 @@ class PRnetEvaluator:
                 validation_losses.append(mse_score)
 
         avg_loss = np.mean(validation_losses)
-        self.scheduler.step(avg_loss)
         return avg_loss
 
     def test(self):
@@ -227,9 +224,7 @@ class PRnetEvaluator:
 
 
     def __make_noise(self, batch_size, shape, volatile=False):
-        tensor = torch.randn(batch_size, shape)
-        noise = Variable(tensor, volatile)
-        noise = noise.to(self.device, dtype=torch.float32)
+        noise = torch.randn(batch_size, shape, device=self.device, dtype=torch.float32)
         return noise
 
     def __weight_init(self, m):
@@ -287,7 +282,7 @@ def objective(trial, dataset_train=None, dataset_validation=None,
 
 def get_models_results(drug_splits=None, loss=None, adata=None, input_dim=None,
                             output_dim=None, drug_rep_name=None, drug_emb_size=None, n_trials=None,
-                            scheduler_mode=None, run_name=None):
+                            scheduler_mode=None, run_name=None, save_path=None):
 
     print("Loading Datasets ...")
 
