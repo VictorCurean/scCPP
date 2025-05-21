@@ -50,26 +50,15 @@ class NullEvaluator:
         pass
 
     @staticmethod
-    def cross_validation_models(drug_splits=None, adata=None, input_name=None,
-                                output_name=None, drug_rep_name=None, drug_emb_size=None,
-                                gene_names_key=None, run_name=None):
-        output = dict()
-        for i in range(5):
-            drugs_test = drug_splits[f'drug_split_{i}']['test']
+    def cross_validation_models(drug_splits=None, adata=None, drug_rep_name=None, drug_emb_size=None,save_path=None):
 
+        drugs_test = drug_splits['test']
+        dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size)
 
-            dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size, input_name, output_name)
+        final_ev = NullEvaluator(dataset_test)
+        predictions = final_ev.test()
 
+        with open(save_path, 'wb') as f:
+            pkl.dump(predictions, f)
 
-            final_ev = NullEvaluator(dataset_test)
-
-            #Get model performance metrics
-            adata_control = adata[adata.obs['product_name'] == "Vehicle"]
-            gene_names = adata_control.uns[gene_names_key]
-            predictions = final_ev.test()
-
-            performance = get_model_stats(predictions, adata_control, output_name, gene_names, run_name)
-            output[i] = performance
-
-        return output
 

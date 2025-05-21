@@ -71,32 +71,29 @@ class MeanEvaluator:
         pass
 
     @staticmethod
-    def cross_validation_models(drug_splits=None, adata=None, input_name=None,
-                                output_name=None, drug_rep_name=None, drug_emb_size=None,
-                                gene_names_key=None, run_name=None):
-        output = dict()
-        for i in range(5):
-            drugs_train = drug_splits[f'drug_split_{i}']['train']
-            drugs_validation = drug_splits[f'drug_split_{i}']['valid']
-            drugs_test = drug_splits[f'drug_split_{i}']['test']
+    def get_models_results(drug_splits=None, adata=None,
+                                drug_rep_name=None, drug_emb_size=None, save_path=None):
 
-            drugs_train_final = list(drugs_train) + list(drugs_validation)
-            dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name,
-                                                                    drug_emb_size, input_name, output_name)
-            dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size,
-                                                             input_name, output_name)
+        print("Loading Datasets ...")
 
+        drugs_train = drug_splits['train']
+        drugs_validation = drug_splits['valid']
+        drugs_test = drug_splits['test']
+
+        drugs_train_final = list(drugs_train) + list(drugs_validation)
+        dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name,
+                                                                drug_emb_size)
+        dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size)
 
 
-            final_ev = MeanEvaluator(dataset_train_final, dataset_test)
-            final_ev.train()
 
-            # Get model performance metrics
-            adata_control = adata[adata.obs['product_name'] == "Vehicle"]
-            gene_names = adata_control.uns[gene_names_key]
-            predictions = final_ev.test()
+        final_ev = MeanEvaluator(dataset_train_final, dataset_test)
+        final_ev.train()
 
-            performance = get_model_stats(predictions, adata_control, output_name, gene_names, run_name)
-            output[i] = performance
+        print("Getting test set predictions and saving results ...")
 
-        return output
+        predictions = final_ev.test()
+
+        with open(save_path, 'wb') as f:
+            pkl.dump(predictions, f)
+
