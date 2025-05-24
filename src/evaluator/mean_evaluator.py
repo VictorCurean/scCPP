@@ -2,6 +2,7 @@ import torch
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+import pickle as pkl
 
 from torch.utils.data.dataloader import DataLoader
 from src.dataset.dataset_unseen_compounds import SciplexDatasetUnseenPerturbations
