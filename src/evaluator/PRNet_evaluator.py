@@ -93,7 +93,7 @@ class PRnetEvaluator:
 
             validation_loss = self.validate()
             print("Epoch:", epoch, "\t Validation Loss:", validation_loss)
-            self.scheduler.step(avg_loss)
+            self.scheduler.step(validation_loss)
             trial.report(validation_loss, epoch)
 
             if validation_loss < best_loss:

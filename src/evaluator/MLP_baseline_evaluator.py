@@ -63,7 +63,7 @@ class MLPBaselineEvaluator():
 
             validation_loss = self.validate(loss_fn)
             print("Epoch:\t", epoch, "Val Loss:\t", validation_loss)
-            self.scheduler.step(avg_loss)
+            self.scheduler.step(validation_loss)
             trial.report(validation_loss, epoch)
 
             if validation_loss < best_loss:
