@@ -59,6 +59,10 @@ class DecoderEvaluator():
         for epoch in range(self.max_epochs):
             self.model.train()
             for _, drug_emb, target, meta in self.train_loader:
+                print(meta)
+                print(meta['cell_type'])
+                print(type(meta['cell_type']))
+
                 cell_type = meta['cell_type']
 
                 cell_type_encoding = cell_type_onehot[cell_type]
