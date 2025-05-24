@@ -49,16 +49,15 @@ class NullEvaluator:
     def objective():
         pass
 
-    @staticmethod
-    def cross_validation_models(drug_splits=None, adata=None, drug_rep_name=None, drug_emb_size=None,save_path=None):
+def get_models_results(drug_splits=None, adata=None, drug_rep_name=None, drug_emb_size=None,save_path=None):
 
-        drugs_test = drug_splits['test']
-        dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size)
+    drugs_test = drug_splits['test']
+    dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size)
 
-        final_ev = NullEvaluator(dataset_test)
-        predictions = final_ev.test()
+    final_ev = NullEvaluator(dataset_test)
+    predictions = final_ev.test()
 
-        with open(save_path, 'wb') as f:
-            pkl.dump(predictions, f)
+    with open(save_path, 'wb') as f:
+        pkl.dump(predictions, f)
 
 

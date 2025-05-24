@@ -70,30 +70,30 @@ class MeanEvaluator:
     def objective():
         pass
 
-    @staticmethod
-    def get_models_results(drug_splits=None, adata=None,
-                                drug_rep_name=None, drug_emb_size=None, save_path=None):
 
-        print("Loading Datasets ...")
+def get_models_results(drug_splits=None, adata=None,
+                            drug_rep_name=None, drug_emb_size=None, save_path=None):
 
-        drugs_train = drug_splits['train']
-        drugs_validation = drug_splits['valid']
-        drugs_test = drug_splits['test']
+    print("Loading Datasets ...")
 
-        drugs_train_final = list(drugs_train) + list(drugs_validation)
-        dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name,
-                                                                drug_emb_size)
-        dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size)
+    drugs_train = drug_splits['train']
+    drugs_validation = drug_splits['valid']
+    drugs_test = drug_splits['test']
+
+    drugs_train_final = list(drugs_train) + list(drugs_validation)
+    dataset_train_final = SciplexDatasetUnseenPerturbations(adata, drugs_train_final, drug_rep_name,
+                                                            drug_emb_size)
+    dataset_test = SciplexDatasetUnseenPerturbations(adata, drugs_test, drug_rep_name, drug_emb_size)
 
 
+    print("Computing Mean Predictions ...")
+    final_ev = MeanEvaluator(dataset_train_final, dataset_test)
+    final_ev.train()
 
-        final_ev = MeanEvaluator(dataset_train_final, dataset_test)
-        final_ev.train()
+    print("Getting test set predictions and saving results ...")
 
-        print("Getting test set predictions and saving results ...")
+    predictions = final_ev.test()
 
-        predictions = final_ev.test()
-
-        with open(save_path, 'wb') as f:
-            pkl.dump(predictions, f)
+    with open(save_path, 'wb') as f:
+        pkl.dump(predictions, f)
 
