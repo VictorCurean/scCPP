@@ -180,7 +180,7 @@ def get_models_results(drug_splits=None, loss_function=None, adata=None, input_d
     study.optimize(lambda trial: objective(trial,
                                            dataset_train=dataset_train, dataset_validation=dataset_validation,
                                            input_dim=input_dim, output_dim=output_dim,
-                                           drug_dim=drug_emb_size, loss_fn=loss_function), n_trials=n_trials, add_relu=add_relu)
+                                           drug_dim=drug_emb_size, loss_fn=loss_function, add_relu=add_relu), n_trials=n_trials)
     best_trial = study.best_trial
     optimal_params = best_trial.params
     best_epoch = best_trial.user_attrs["best_epoch"]
