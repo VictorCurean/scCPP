@@ -129,7 +129,7 @@ def __get_results__fc(results, adata_control, gene_names):
 
 
     # create adata control
-    adata_ctrl = ad.AnnData(adata_control.X.toarray())
+    adata_ctrl = ad.AnnData(adata_control.X)
     adata_ctrl.obs['cell_type'] = list(adata_control.obs['cell_type'])
     adata_ctrl.obs['compound'] = list(adata_control.obs['product_name'])
     adata_ctrl.obs['dose'] = 0
