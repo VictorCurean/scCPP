@@ -57,7 +57,7 @@ class PGM(nn.Module):
     """
 
     def __init__(self, gene_vector_dim: int, drug_latent_dim: int, noise_dim: int, hidden_layer_sizes: list = [128, 128], agg_latent_dim: int = 10,
-                 adaptor_layer_sizes: list = [128], drug_initial_dim: int = 1024, dr_rate: float = 0.05, add_relu=True **kwargs):
+                 adaptor_layer_sizes: list = [128], drug_initial_dim: int = 1024, dr_rate: float = 0.05, add_relu=True, **kwargs):
         super().__init__()
         assert isinstance(hidden_layer_sizes, list)
         assert isinstance(agg_latent_dim, int)
