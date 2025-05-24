@@ -330,7 +330,7 @@ def get_models_results(drug_splits=None, loss=None, adata=None, input_dim=None,
     optimal_params['max_epochs'] = 100
 
     final_ev = PRnetEvaluator(dataset_train_final, None, dataset_test, optimal_params)
-    final_ev.train(loss, num_epochs=best_epoch)
+    final_ev.train(num_epochs=best_epoch)
 
     print("Getting test set predictions and saving results ...")
 
