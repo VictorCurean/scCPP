@@ -174,7 +174,7 @@ def objective(trial, dataset_train=None, dataset_validation=None,
         'batch_size': batch_size,
         'hidden_dims' : (hidden_dims,),
     }
-    ev = MLPBaselineEvaluator(dataset_train, dataset_validation, None, params, add_relu=add_relu)
+    ev = DecoderEvaluator(dataset_train, dataset_validation, None, params, add_relu=add_relu)
 
     return ev.train_with_validation(loss_fn, trial)
 
@@ -220,7 +220,7 @@ def get_models_results(drug_splits=None, loss_function=None, adata=None, input_d
     optimal_params['scheduler_mode'] = scheduler_mode
     optimal_params['hidden_dims'] = (optimal_params['hidden_dims'],)
 
-    final_ev = MLPBaselineEvaluator(dataset_train_final, None, dataset_test, optimal_params, add_relu=add_relu)
+    final_ev = DecoderEvaluator(dataset_train_final, None, dataset_test, optimal_params, add_relu=add_relu)
     final_ev.train(loss_function, num_epochs=best_epoch)
 
     print("Getting test set predictions and saving results ...")
