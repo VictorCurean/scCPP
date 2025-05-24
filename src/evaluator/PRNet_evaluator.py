@@ -6,6 +6,7 @@ from torch.distributions import normal
 from torch.utils.data.dataloader import DataLoader
 import torch.optim as optim
 import optuna
+import pickle as pkl
 
 import math
 from tqdm import tqdm
@@ -21,14 +22,14 @@ from src.utils import get_model_stats
 
 
 class PRnetEvaluator:
-    def __init__(self, train_dataset=None, valid_dataset=None, test_dataset=None, params=None):
+    def __init__(self, train_dataset=None, valid_dataset=None, test_dataset=None, params=None, add_relu=True):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
         self.model = PRnet(gene_vector_dim=params['input_dim'], hidden_layer_sizes=params['hidden_dims'],
                            agg_latent_dim=params['agg_latent_dim'], adaptor_layer_sizes=params['hidden_dims_adapter'],
                            drug_latent_dim=params['drug_latent_dim'], comb_num=params['comb_num'], drug_dimension=params['drug_dimension'],
-                           dr_rate=params['dropout'])
+                           dr_rate=params['dropout'], add_relu=add_relu)
 
 
         self.modelPGM = self.model.get_PGM()
@@ -244,7 +245,7 @@ class PRnetEvaluator:
 
 
 def objective(trial, dataset_train=None, dataset_validation=None,
-              input_dim=0, output_dim=0, drug_dim=0, scheduler_mode='min', loss=None):
+              input_dim=0, output_dim=0, drug_dim=0, scheduler_mode='min', loss=None, add_relu=True):
 
     lr = trial.suggest_categorical('lr', [1e-6, 1e-5, 1e-4, 1e-3])
     weight_decay = trial.suggest_categorical('weight_decay', [1e-6, 1e-5, 1e-4, 1e-3])
@@ -276,13 +277,13 @@ def objective(trial, dataset_train=None, dataset_validation=None,
         'loss': loss
 
     }
-    ev = PRnetEvaluator(dataset_train, dataset_validation, None, params)
+    ev = PRnetEvaluator(dataset_train, dataset_validation, None, params, add_relu=add_relu)
 
     return ev.train_with_validation(loss, trial)
 
 def get_models_results(drug_splits=None, loss=None, adata=None, input_dim=None,
                             output_dim=None, drug_rep_name=None, drug_emb_size=None, n_trials=None,
-                            scheduler_mode=None, run_name=None, save_path=None):
+                            scheduler_mode=None, run_name=None, save_path=None, add_relu=True):
 
     print("Loading Datasets ...")
 
@@ -299,7 +300,7 @@ def get_models_results(drug_splits=None, loss=None, adata=None, input_dim=None,
     study.optimize(lambda trial: objective(trial,
                                            dataset_train=dataset_train, dataset_validation=dataset_validation,
                                            input_dim=input_dim, output_dim=output_dim,
-                                           drug_dim=drug_emb_size, loss=loss), n_trials=n_trials)
+                                           drug_dim=drug_emb_size, loss=loss), n_trials=n_trials, add_relu=add_relu)
     best_trial = study.best_trial
     optimal_params = best_trial.params
     best_epoch = best_trial.user_attrs["best_epoch"]
@@ -329,7 +330,7 @@ def get_models_results(drug_splits=None, loss=None, adata=None, input_dim=None,
     optimal_params['model_patience'] = 20
     optimal_params['max_epochs'] = 100
 
-    final_ev = PRnetEvaluator(dataset_train_final, None, dataset_test, optimal_params)
+    final_ev = PRnetEvaluator(dataset_train_final, None, dataset_test, optimal_params, add_relu=add_relu)
     final_ev.train(num_epochs=best_epoch)
 
     print("Getting test set predictions and saving results ...")

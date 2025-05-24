@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class MLPModel(nn.Module):
-    def __init__(self, input_dim, drug_dim, output_dim, hidden_dims, dropout):
+    def __init__(self, input_dim, drug_dim, output_dim, hidden_dims, dropout, add_relu=True):
         super(MLPModel, self).__init__()
         # Combined input: cell + drug
         combined_dim = input_dim + drug_dim 
@@ -21,7 +21,10 @@ class MLPModel(nn.Module):
 
         # Final projection back to cell embedding space
         layers.append(nn.Linear(in_features, output_dim))
-        layers.append(nn.ReLU())
+        if add_relu:
+            layers.append(nn.ReLU())
+        else:
+            print("Skipping final ReLU layer ...")
 
         self.mlp = nn.Sequential(*layers)
 

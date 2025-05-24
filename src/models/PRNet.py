@@ -10,7 +10,7 @@ class PRnet(nn.Module):
 
     def __init__(self, gene_vector_dim=5000, hidden_layer_sizes: list = [128, 64], agg_latent_dim: int = 10,
                  adaptor_layer_sizes: list = [128], drug_latent_dim: int = 50, comb_num: int = 1,
-                 drug_dimension: int = 1024, dr_rate: float = 0.05, noise_dimension: int = 10):
+                 drug_dimension: int = 1024, dr_rate: float = 0.05, noise_dimension: int = 10, add_relu=True):
         super().__init__()
 
         self.x_dim_ = gene_vector_dim  # adata.n_vars
@@ -23,7 +23,7 @@ class PRnet(nn.Module):
         self.comb_adapt_dim = comb_num * drug_dimension
 
         self.PGM = PGM(self.x_dim_, self.c_dim, self.n_dim, self.hidden_layer_sizes_, self.z_dim_,
-                       self.adaptor_layer_sizes, self.comb_adapt_dim, self.dr_rate_)
+                       self.adaptor_layer_sizes, self.comb_adapt_dim, self.dr_rate_, add_relu=add_relu)
 
         self.is_trained_ = False
         self.trainer = None
@@ -57,7 +57,7 @@ class PGM(nn.Module):
     """
 
     def __init__(self, gene_vector_dim: int, drug_latent_dim: int, noise_dim: int, hidden_layer_sizes: list = [128, 128], agg_latent_dim: int = 10,
-                 adaptor_layer_sizes: list = [128], drug_initial_dim: int = 1024, dr_rate: float = 0.05, **kwargs):
+                 adaptor_layer_sizes: list = [128], drug_initial_dim: int = 1024, dr_rate: float = 0.05, add_relu=True **kwargs):
         super().__init__()
         assert isinstance(hidden_layer_sizes, list)
         assert isinstance(agg_latent_dim, int)
@@ -82,7 +82,7 @@ class PGM(nn.Module):
         adaptor_layer_sizes_.insert(0, self.comb_adapt_dim)
 
         self.encoder = PEncoder(encoder_layer_sizes, self.z_dim, self.dr_rate)
-        self.decoder = PDecoder(self.z_dim + self.c_dim + self.n_dim, decoder_layer_sizes, self.x_dim, self.dr_rate)
+        self.decoder = PDecoder(self.z_dim + self.c_dim + self.n_dim, decoder_layer_sizes, self.x_dim, self.dr_rate, add_relu=add_relu)
         self.CombAdaptor = PAdaptor(adaptor_layer_sizes_, self.c_dim, self.dr_rate)
 
     def get_latent(self, x: torch.Tensor, c: torch.Tensor, n: torch.Tensor):
@@ -158,7 +158,7 @@ class PDecoder(nn.Module):
             Constructs the  Perturb-decoder.  Decodes data from latent space to data space. It will transform constructed latent space to the previous space of data with means and log variances of n_dimensions = n_vars.
         """
 
-    def __init__(self, z_dimension: int, layer_sizes: list, x_dimension: int, dropout_rate: float):
+    def __init__(self, z_dimension: int, layer_sizes: list, x_dimension: int, dropout_rate: float, add_relu=True):
         super().__init__()
 
         layer_sizes = [z_dimension] + layer_sizes
@@ -169,6 +169,8 @@ class PDecoder(nn.Module):
         self.FirstL.add_module("N0", module=nn.BatchNorm1d(layer_sizes[1]))
         self.FirstL.add_module(name="A0", module=nn.LeakyReLU(negative_slope=0.3))
         self.FirstL.add_module(name="D0", module=nn.Dropout(p=dropout_rate))
+
+        self.add_relu = add_relu
 
         # Create all Decoder hidden layers
         if len(layer_sizes) > 2:
@@ -184,7 +186,8 @@ class PDecoder(nn.Module):
 
         # Create Output Layers
         self.recon_decoder = nn.Sequential(nn.Linear(layer_sizes[-2], layer_sizes[-1]))
-        self.relu = nn.ReLU()
+        if self.add_relu:
+            self.relu = nn.ReLU()
 
     def forward(self, z: torch.Tensor):
         dec_latent = self.FirstL(z)
@@ -198,7 +201,11 @@ class PDecoder(nn.Module):
         # Compute Decoder Output
         recon_x = self.recon_decoder(x)
         dim = recon_x.size(1) // 2
-        recon_x = torch.cat((self.relu(recon_x[:, :dim]), recon_x[:, dim:]), dim=1)
+
+        if self.add_relu:
+            recon_x = torch.cat((self.relu(recon_x[:, :dim]), recon_x[:, dim:]), dim=1)
+        else:
+            recon_x = torch.cat((recon_x[:, :dim], recon_x[:, dim:]), dim=1)
         return recon_x
 
 

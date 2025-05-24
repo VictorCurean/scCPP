@@ -14,13 +14,13 @@ from src.utils import get_model_stats
 
 
 class MLPBaselineEvaluator():
-    def __init__(self, train_dataset, val_dataset, test_dataset, params):
+    def __init__(self, train_dataset, val_dataset, test_dataset, params, add_relu=True):
         self.MODEL_PATIENCE = 10
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.max_epochs = 100
 
         self.model = MLPModel(params['input_dim'], params['drug_dim'], params['output_dim'], params['hidden_dims'],
-                              params['dropout'])
+                              params['dropout'], add_relu=add_relu)
         self.model.to(self.device)
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=params['lr'], weight_decay=params['weight_decay'])
@@ -132,7 +132,7 @@ class MLPBaselineEvaluator():
 
 
 def objective(trial, dataset_train=None, dataset_validation=None,
-              input_dim=0, output_dim=0, drug_dim=0, scheduler_mode='min', loss_fn=None):
+              input_dim=0, output_dim=0, drug_dim=0, scheduler_mode='min', loss_fn=None, add_relu=True):
 
     lr = trial.suggest_categorical('lr', [1e-6, 1e-5, 1e-4, 1e-3])
     weight_decay = trial.suggest_categorical('weight_decay', [1e-6, 1e-5, 1e-4, 1e-3])
@@ -156,13 +156,13 @@ def objective(trial, dataset_train=None, dataset_validation=None,
         'batch_size': batch_size,
         'hidden_dims' : (hidden_dims,),
     }
-    ev = MLPBaselineEvaluator(dataset_train, dataset_validation, None, params)
+    ev = MLPBaselineEvaluator(dataset_train, dataset_validation, None, params, add_relu=add_relu)
 
     return ev.train_with_validation(loss_fn, trial)
 
 def get_models_results(drug_splits=None, loss_function=None, adata=None, input_dim=None,
                             output_dim=None, drug_rep_name=None, drug_emb_size=None, n_trials=None,
-                            scheduler_mode=None, run_name=None, save_path=None):
+                            scheduler_mode=None, run_name=None, save_path=None, add_relu=True):
 
     print("Loading Datasets ...")
 
@@ -180,7 +180,7 @@ def get_models_results(drug_splits=None, loss_function=None, adata=None, input_d
     study.optimize(lambda trial: objective(trial,
                                            dataset_train=dataset_train, dataset_validation=dataset_validation,
                                            input_dim=input_dim, output_dim=output_dim,
-                                           drug_dim=drug_emb_size, loss_fn=loss_function), n_trials=n_trials)
+                                           drug_dim=drug_emb_size, loss_fn=loss_function), n_trials=n_trials, add_relu=add_relu)
     best_trial = study.best_trial
     optimal_params = best_trial.params
     best_epoch = best_trial.user_attrs["best_epoch"]
@@ -202,7 +202,7 @@ def get_models_results(drug_splits=None, loss_function=None, adata=None, input_d
     optimal_params['scheduler_mode'] = scheduler_mode
     optimal_params['hidden_dims'] = (optimal_params['hidden_dims'],)
 
-    final_ev = MLPBaselineEvaluator(dataset_train_final, None, dataset_test, optimal_params)
+    final_ev = MLPBaselineEvaluator(dataset_train_final, None, dataset_test, optimal_params, add_relu=add_relu)
     final_ev.train(loss_function, num_epochs=best_epoch)
 
     print("Getting test set predictions and saving results ...")
