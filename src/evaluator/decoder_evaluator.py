@@ -59,13 +59,8 @@ class DecoderEvaluator():
         for epoch in range(self.max_epochs):
             self.model.train()
             for _, drug_emb, target, meta in self.train_loader:
-                print(meta)
-                print(meta['cell_type'])
-                print(type(meta['cell_type']))
 
-                cell_type = meta['cell_type']
-
-                cell_type_encoding = cell_type_onehot[cell_type]
+                cell_type_encoding = torch.stack([cell_type_onehot[x] for x in meta['cell_type']])
 
                 cell_type_encoding, drug_emb, target = cell_type_encoding.to(self.device), drug_emb.to(self.device), target.to(self.device)
 
@@ -104,8 +99,7 @@ class DecoderEvaluator():
 
         for epoch in range(num_epochs):
             for _, drug_emb, target, meta in self.train_loader:
-                cell_type = meta['cell_type']
-                cell_type_encoding = cell_type_onehot[cell_type]
+                cell_type_encoding = torch.stack([cell_type_onehot[x] for x in meta['cell_type']])
                 cell_type_encoding, drug_emb, target = cell_type_encoding.to(self.device), drug_emb.to(self.device), target.to(self.device)
 
                 self.optimizer.zero_grad()
@@ -120,8 +114,7 @@ class DecoderEvaluator():
 
         with torch.no_grad():
             for _, drug_emb, target, meta in self.val_loader:
-                cell_type = meta['cell_type']
-                cell_type_encoding = cell_type_onehot[cell_type]
+                cell_type_encoding = torch.stack([cell_type_onehot[x] for x in meta['cell_type']])
 
                 cell_type_encoding, drug_emb, target = cell_type_encoding.to(self.device), drug_emb.to(self.device), target.to(self.device)
                 validation_loss = loss_fn(self.model(cell_type_encoding, drug_emb), target, cell_type_encoding)
@@ -136,8 +129,7 @@ class DecoderEvaluator():
 
         with torch.no_grad():
             for control, drug_emb, target, meta in tqdm(self.test_loader):
-                cell_type = meta['cell_type']
-                cell_type_encoding = cell_type_onehot[cell_type]
+                cell_type_encoding = torch.stack([cell_type_onehot[x] for x in meta['cell_type']])
 
                 control, drug_emb, target = control.to(self.device), drug_emb.to(self.device), target.to(self.device)
                 cell_type_encoding = cell_type_encoding.to(self.device)
