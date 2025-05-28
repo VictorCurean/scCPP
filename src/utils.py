@@ -13,7 +13,7 @@ from scipy.stats import pearsonr, spearmanr
 
 def format_test_results(test_results_raw):
     """
-    Eliminate negative data points from the results
+    Eliminate negative data points from the scoring
     """
 
     test_results_formatted = test_results_raw[test_results_raw['compound'] != None]
@@ -119,9 +119,9 @@ def __get_predicted_bio_rep(formatted_test_results, control_adata):
 
 
 
-def __get_results__fc(results, adata_control, gene_names):
+def __get_results__fc(results, adata_control, gene_names, method='wilcoxon'):
     """
-    Get fold changes results
+    Get fold changes scoring
     """
 
     #clamp negative values in predicted values
@@ -172,7 +172,7 @@ def __get_results__fc(results, adata_control, gene_names):
 
         assert len(list(subset.obs['condition'].unique())) == 3
 
-        sc.tl.rank_genes_groups(subset, groupby='condition', reference='control', method='wilcoxon')
+        sc.tl.rank_genes_groups(subset, groupby='condition', reference='control', method=method)
 
         df_perturbed = sc.get.rank_genes_groups_df(subset, "perturbed")
         df_predicted = sc.get.rank_genes_groups_df(subset, "predicted")
@@ -252,7 +252,7 @@ def __get_logfc_correlation_score(res_logfc_full):
 
 def __get_logFC_rank_score(res_logfc_full):
     """
-    Get the rank based on logFC results
+    Get the rank based on logFC scoring
     """
     results = dict()
 
@@ -279,10 +279,13 @@ def __get_logFC_rank_score(res_logfc_full):
         results[cell_type] = np.mean(scores)
     return results
 
-def get_model_stats(formatted_test_results, adata_control, gene_names, key):
+def get_model_stats(formatted_test_results, adata_control, gene_names, key, dose_subset=None, method_deg='wilcoxon'):
+
+    if dose_subset is not None:
+        formatted_test_results = formatted_test_results[formatted_test_results['dose'] == dose_subset]
 
     #aggregated MSE
-    res_mse_agg = __get_model_performance_aggregated(formatted_test_results, __get_mse)
+    # res_mse_agg = __get_model_performance_aggregated(formatted_test_results, __get_mse)
 
     #aggregated R2
     res_r2_agg = __get_model_performance_aggregated(formatted_test_results, __get_r2_score)
@@ -290,7 +293,7 @@ def get_model_stats(formatted_test_results, adata_control, gene_names, key):
     #aggregated E-distance
     res_edistance_agg = __get_model_performance_aggregated(formatted_test_results, __get_edistance)
 
-    lfc = __get_results__fc(formatted_test_results, adata_control, gene_names)
+    lfc = __get_results__fc(formatted_test_results, adata_control, gene_names, method=method_deg)
 
     #rank all logFC
     res_rank_logfc = __get_logFC_rank_score(lfc)
@@ -305,9 +308,9 @@ def get_model_stats(formatted_test_results, adata_control, gene_names, key):
     #res_predicted_bio_rep = __get_predicted_bio_rep(formatted_test_results, adata_control)
 
     return {"key": key,
-            "mse_A549": res_mse_agg['A549'],
-            "mse_K562": res_mse_agg['K562'],
-            "mse_MCF7": res_mse_agg['MCF7'],
+            # "mse_A549": res_mse_agg['A549'],
+            # "mse_K562": res_mse_agg['K562'],
+            # "mse_MCF7": res_mse_agg['MCF7'],
             "r2_A549": res_r2_agg['A549'],
             "r2_K562": res_r2_agg['K562'],
             "r2_MCF7": res_r2_agg['MCF7'],
