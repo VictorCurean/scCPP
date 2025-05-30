@@ -125,7 +125,7 @@ def __get_results__fc(results, adata_control, gene_names, method='wilcoxon'):
     """
 
     #clamp negative values in predicted values
-    #results = clamp_negative_values(results, 'pred_emb')
+    results = clamp_negative_values(results, 'pred_emb')
 
 
     # create adata control
