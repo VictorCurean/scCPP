@@ -56,6 +56,14 @@ def __get_mse(X, Y):
 
     return mean_squared_error(x, y)
 
+def __get_css(X, Y):
+    """
+    Calculate the Cosine Similarity Coefficient between the row average of 2 matrices
+    """
+    x = np.mean(X, axis=0)
+    y = np.mean(Y, axis=0)
+
+    return np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
 
 def __get_model_performance_aggregated(formatted_test_results, dist_func):
     """
@@ -285,7 +293,10 @@ def get_model_stats(formatted_test_results, adata_control, gene_names, key, dose
         formatted_test_results = formatted_test_results[formatted_test_results['dose'] == dose_subset]
 
     #aggregated MSE
-    # res_mse_agg = __get_model_performance_aggregated(formatted_test_results, __get_mse)
+    res_mse_agg = __get_model_performance_aggregated(formatted_test_results, __get_mse)
+
+    #aggregatec CSS
+    res_css_agg = __get_model_performance_aggregated(formatted_test_results, __get_css)
 
     #aggregated R2
     res_r2_agg = __get_model_performance_aggregated(formatted_test_results, __get_r2_score)
@@ -308,9 +319,12 @@ def get_model_stats(formatted_test_results, adata_control, gene_names, key, dose
     #res_predicted_bio_rep = __get_predicted_bio_rep(formatted_test_results, adata_control)
 
     return {"key": key,
-            # "mse_A549": res_mse_agg['A549'],
-            # "mse_K562": res_mse_agg['K562'],
-            # "mse_MCF7": res_mse_agg['MCF7'],
+            "mse_A549": res_mse_agg['A549'],
+            "mse_K562": res_mse_agg['K562'],
+            "mse_MCF7": res_mse_agg['MCF7'],
+            "css_A549": res_css_agg['A549'],
+            "css_K562": res_css_agg['K562'],
+            "css_MCF7": res_css_agg['MCF7'],
             "r2_A549": res_r2_agg['A549'],
             "r2_K562": res_r2_agg['K562'],
             "r2_MCF7": res_r2_agg['MCF7'],
