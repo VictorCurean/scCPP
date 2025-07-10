@@ -6,7 +6,6 @@ import pickle as pkl
 
 from torch.utils.data.dataloader import DataLoader
 from src.dataset.dataset_unseen_compounds import SciplexDatasetUnseenPerturbations
-from src.utils import get_model_stats
 
 
 class MeanEvaluator:

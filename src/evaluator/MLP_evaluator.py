@@ -9,8 +9,6 @@ from torch.utils.data.dataloader import DataLoader
 
 from src.models.MLP_concat import MLPModel
 from src.dataset.dataset_unseen_compounds import SciplexDatasetUnseenPerturbations
-from src.utils import get_model_stats
-
 
 
 class MLPBaselineEvaluator():

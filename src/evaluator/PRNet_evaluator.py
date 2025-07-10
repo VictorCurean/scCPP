@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.distributions import normal
 from torch.utils.data.dataloader import DataLoader
@@ -17,8 +16,6 @@ from sklearn.metrics import mean_squared_error
 
 from src.dataset.dataset_unseen_compounds import SciplexDatasetUnseenPerturbations
 from src.models.PRNet import PRnet
-from src.utils import get_model_stats
-
 
 
 class PRnetEvaluator:

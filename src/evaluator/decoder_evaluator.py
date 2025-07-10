@@ -9,8 +9,6 @@ from torch.utils.data.dataloader import DataLoader
 
 from src.models.compound_decoder import DecoderModel
 from src.dataset.dataset_unseen_compounds import SciplexDatasetUnseenPerturbations
-from src.utils import get_model_stats
-
 
 cell_type_onehot = {"A549": torch.tensor([1, 0, 0]),
                     "K562": torch.tensor([0, 1, 0]),
