@@ -1,3 +1,8 @@
-# scFiLM
+# scCPP - single-cell Chemical Perturbation Preprocessing
 
-Single-Cell chemical perturbation prediction using foundation models and Feature-wIse Linear Modulation
+This repository hosts code for training and evaluating single-cell chemical perturbation models for investingating the effects of single-cell preprocessing workflows on model results.
+
+
+
+
+
