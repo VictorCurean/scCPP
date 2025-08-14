@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from utils import *
+from src.evaluation.utils import *
 
 def get_logFC_rank_similarity_score(res_logfc_full):
     """
