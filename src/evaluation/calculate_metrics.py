@@ -1,10 +1,10 @@
 
-from utils import get_results__fc
-from error_metrics import get_error_metrics
-from goodness_of_fit_metrics import get_goodness_of_fit_metrics
-from distribution_similarity_metrics import get_distribution_similarity_metrics
-from rank_similarity_metrics import get_expr_rank_similarity_score, get_logFC_rank_similarity_score
-from biological_validation_metrics import get_gene_regulation_agreement, get_top_logfc_correlation_score, get_biorep_delta
+from src.evaluation.utils import get_results__fc
+from src.evaluation.error_metrics import get_error_metrics
+from src.evaluation.goodness_of_fit_metrics import get_goodness_of_fit_metrics
+from src.evaluation.distribution_similarity_metrics import get_distribution_similarity_metrics
+from src.evaluation.rank_similarity_metrics import get_expr_rank_similarity_score, get_logFC_rank_similarity_score
+from src.evaluation.biological_validation_metrics import get_gene_regulation_agreement, get_top_logfc_correlation_score, get_biorep_delta
 
 
 def get_model_stats(test_results=None,
