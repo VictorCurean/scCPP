@@ -30,7 +30,7 @@ def get_model_stats(test_results=None,
         #Rank similarity metrics
         lfc = get_results__fc(test_results, adata_control, gene_names, method="wilcoxon")
         delta_deg = get_results__delta_deg(test_results, adata_control, gene_names, method="wilcoxon")
-        logp = get_results__logp(test_results, adata_control, gene_names, method="t-test-overestim_var")
+        logp = get_results__logp(test_results, adata_control, gene_names, method="t-test_overestim_var")
 
         results_logfc_rank_similarity = get_logp_rank_similarity_score(logp)
         #results_logfc_rank_similarity = get_logFC_rank_similarity_score(lfc)
