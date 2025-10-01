@@ -1,10 +1,10 @@
 
-from src.evaluation.utils import get_results__fc
+from src.evaluation.utils import get_results__fc, get_results__logp, get_results__delta_deg
 from src.evaluation.error_metrics import get_error_metrics
 from src.evaluation.goodness_of_fit_metrics import get_goodness_of_fit_metrics
 from src.evaluation.distribution_similarity_metrics import get_distribution_similarity_metrics
-from src.evaluation.rank_similarity_metrics import get_expr_rank_similarity_score, get_logFC_rank_similarity_score
-from src.evaluation.biological_validation_metrics import get_gene_regulation_agreement, get_top_logfc_correlation_score, get_biorep_delta
+from src.evaluation.rank_similarity_metrics import get_expr_rank_similarity_score, get_logp_rank_similarity_score
+from src.evaluation.biological_validation_metrics import get_gene_regulation_agreement, get_top_delta_correlation_score_deg
 
 
 def get_model_stats(test_results=None,
@@ -13,14 +13,13 @@ def get_model_stats(test_results=None,
                     model_name=None,
                     experiment_key=None,
                     experiment_condition=None,
-                    dose_subset=None,
-                    method_deg='wilcoxon'):
-
-        #ERROR Metrics
-        results_mse, results_mae, results_rmse, results_l2norm = get_error_metrics(test_results)
+                    dose_subset=None):
 
         if dose_subset is not None:
                 test_results = test_results[test_results['dose'] == dose_subset]
+
+        #ERROR Metrics
+        results_mse, results_mae, results_rmse, results_l2norm = get_error_metrics(test_results)
 
         #GOODNESS of FIT METRICS
         results_r2, results_css, results_pearson = get_goodness_of_fit_metrics(test_results, adata_control)
@@ -29,13 +28,17 @@ def get_model_stats(test_results=None,
         results_mmd, results_wasserstein = get_distribution_similarity_metrics(test_results)
 
         #Rank similarity metrics
-        lfc = get_results__fc(test_results, adata_control, gene_names, method=method_deg)
-        results_logfc_rank_similarity = get_logFC_rank_similarity_score(lfc)
+        lfc = get_results__fc(test_results, adata_control, gene_names, method="wilcoxon")
+        delta_deg = get_results__delta_deg(test_results, adata_control, gene_names, method="wilcoxon")
+        logp = get_results__logp(test_results, adata_control, gene_names, method="t-test-overestim-var")
+
+        results_logfc_rank_similarity = get_logp_rank_similarity_score(logp)
+        #results_logfc_rank_similarity = get_logFC_rank_similarity_score(lfc)
         results_expr_rank_similarity = get_expr_rank_similarity_score(test_results, adata_control)
 
         results_gra = get_gene_regulation_agreement(lfc)
-        results_top_logfc_correlation = get_top_logfc_correlation_score(lfc)
-        results_biorep_delta = get_biorep_delta(test_results, adata_control)
+        results_top_logfc_correlation = get_top_delta_correlation_score_deg(delta_deg)
+        #results_biorep_delta = get_biorep_delta(test_results, adata_control)
 
         return {"model": model_name,
                 "experiment_key": experiment_key,
@@ -94,9 +97,9 @@ def get_model_stats(test_results=None,
                 "logfc_corr_K562": results_top_logfc_correlation["K562"],
                 "logfc_corr_MCF7": results_top_logfc_correlation["MCF7"],
 
-                "biorep_delta_A549": results_biorep_delta["A549"],
-                "biorep_delta_K562": results_biorep_delta["K562"],
-                "biorep_delta_MCF7": results_biorep_delta["MCF7"],
+                # "biorep_delta_A549": results_biorep_delta["A549"],
+                # "biorep_delta_K562": results_biorep_delta["K562"],
+                # "biorep_delta_MCF7": results_biorep_delta["MCF7"],
             }
 
 

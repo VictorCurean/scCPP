@@ -2,12 +2,12 @@ import numpy as np
 from sklearn.metrics import r2_score
 from scipy.stats import pearsonr
 
-def __get_r2_delta(X, Y, ctrl):
+def __get_r2(X, Y):
     """
     Calculate correlation of determination between the row avergae delta of 2 matrices
     """
-    x = np.asarray(np.mean(X, axis=0) - ctrl).flatten()
-    y = np.asarray(np.mean(Y, axis=0) - ctrl).flatten()
+    x = np.mean(X, axis=0)
+    y = np.mean(Y, axis=0)
 
 
     return r2_score(x, y)
@@ -71,7 +71,7 @@ def get_goodness_of_fit_metrics(df_predictions, adata_control):
 
                 ctrl = ctrl_per_cell_type[cell_type]
 
-                r2 = __get_r2_delta(X_pert, X_pred, ctrl)
+                r2 = __get_r2(X_pert, X_pred)
                 css = __get_css_delta(X_pert, X_pred, ctrl)
                 pearsonr = __get_pearson_delta(X_pert, X_pred, ctrl)
 

@@ -2,7 +2,7 @@ import numpy as np
 from scipy.stats import spearmanr, pearsonr
 from sklearn.metrics import mean_squared_error
 
-def get_top_logfc_correlation_score(res_logfc_full, topn=50):
+def get_top_logfc_correlation_score(res_logfc_full, topn=20):
     """
     Get the pearson correlation between the top DEGs between predicted and target
     """
@@ -13,19 +13,45 @@ def get_top_logfc_correlation_score(res_logfc_full, topn=50):
         scores = list()
         for i, row in res_logfc.iterrows():
 
-            #perturbed top 50 logfc
+            #perturbed top 20 logfc
             combined_pert = list(zip(row['pvals_pert'], row['logFC_pert'], row['names']))
             sorted_combined_pert = sorted(combined_pert, key=lambda x: x[0])
-            top50 = sorted_combined_pert[:topn]
-            top50_logFC_pert = [x[1] for x in top50]
-            top50_genes = [x[2] for x in top50]
+            top_genes = sorted_combined_pert[:topn]
+            top_genes_logFC_pert = [x[1] for x in top_genes]
+            top_genes_names = [x[2] for x in top_genes]
 
-            #predicted logfc for same 50 genes
+            #predicted logfc for same 20 genes
             combined_pred = dict(zip(row['names'], row['logFC_pred']))
-            top50_logFC_pred = [combined_pred[gene] for gene in top50_genes]
+            top_genes_logFC_pred = [combined_pred[gene] for gene in top_genes_names]
 
-            corr, _ = pearsonr(top50_logFC_pert, top50_logFC_pred)
+            corr, _ = pearsonr(top_genes_logFC_pert, top_genes_logFC_pred)
             scores.append(corr)
+        results[cell_type] = scores
+
+    return results
+
+def get_top_delta_correlation_score_deg(res_delta_full, topn=20):
+    """
+    Pearson correlation between Δ_pert and Δ_pred restricted to the top-N
+    DEGs by adjusted p-value from sc.tl.rank_genes_groups (perturbed vs control).
+    """
+    results = {}
+
+    for cell_type in res_delta_full['cell_type'].unique():
+        df = res_delta_full[res_delta_full['cell_type'] == cell_type]
+        scores = []
+
+        for _, row in df.iterrows():
+            delta_pert = np.asarray(row['delta_pert'])
+            delta_pred = np.asarray(row['delta_pred'])
+            pvals      = np.asarray(row['pvals_pert'])
+
+            # indices of top-N by significance (smallest p-values)
+            idx = np.argsort(pvals)[:topn]
+
+            r, _ = pearsonr(delta_pert[idx], delta_pred[idx])
+            scores.append(r)
+
         results[cell_type] = scores
 
     return results

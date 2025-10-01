@@ -89,6 +89,33 @@ def get_expr_rank_similarity_score(formatted_test_results, adata_control):
         results[cell_type] = scores
     return results
 
+def get_logp_rank_similarity_score(res_logp_full):
+    """
+    Rank similarity (cosine on signed -ln(p) vectors), per cell_type.
+    """
+    results = {}
+
+    for cell_type in res_logp_full['cell_type'].unique():
+        df = res_logp_full[res_logp_full['cell_type'] == cell_type]
+        scores = []
+
+        for i, row in df.iterrows():
+            pert_vec = row['logp_pert']
+
+            sims = []
+            for j, row2 in df.iterrows():
+                pred_vec = row2['logp_pred']
+                cos = np.dot(pred_vec, pert_vec) / (np.linalg.norm(pred_vec) * np.linalg.norm(pert_vec))
+                sims.append([j, cos])
+
+            sims.sort(key=lambda x: x[1], reverse=True)
+            position = next((k for k, pair in enumerate(sims) if pair[0] == i), -1)
+            rank = position / (len(sims) - 1)
+            scores.append(rank)
+
+        results[cell_type] = scores
+    return results
+
 
 
 
