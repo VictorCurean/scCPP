@@ -1,3 +1,4 @@
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -167,3 +168,4 @@ junk/TO_REFACTOR/data_preprocessing/models/barlow_closed.pkl
 results/
 src/VARS.py
 results_old/
+results_balanced_data/
