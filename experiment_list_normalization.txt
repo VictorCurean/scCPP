@@ -1,0 +1,101 @@
+model_name	experiment_key	experiment_condition	results_path	adata_path	dose_subset
+Null_Baseline	normalization	raw	./results/normalization/null_rawcount_norm_res.pkl	./data/normalization/sciplex_raw_filt.h5ad	None
+Mean_Baseline	normalization	raw	./results/normalization/mean_rawcount_norm_res.pkl	./data/normalization/sciplex_raw_filt.h5ad	None
+Decoder	normalization	raw	./results/normalization/decoder_rawcount_norm_res.pkl	./data/normalization/sciplex_raw_filt.h5ad	None
+MLP	normalization	raw	./results/normalization/mlp_rawcount_norm_res.pkl	./data/normalization/sciplex_raw_filt.h5ad	None
+PRNet	normalization	raw	./results/normalization/prnet_rawcount_norm_res.pkl	./data/normalization/sciplex_raw_filt.h5ad	None
+Null_Baseline	normalization	CPM	./results/normalization/null_cpm_norm_res.pkl	./data/normalization/sciplex_cpm_filt.h5ad	None
+Mean_Baseline	normalization	CPM	./results/normalization/mean_cpm_norm_res.pkl	./data/normalization/sciplex_cpm_filt.h5ad	None
+Decoder	normalization	CPM	./results/normalization/decoder_cpm_norm_res.pkl	./data/normalization/sciplex_cpm_filt.h5ad	None
+MLP	normalization	CPM	./results/normalization/mlp_cpm_norm_res.pkl	./data/normalization/sciplex_cpm_filt.h5ad	None
+PRNet	normalization	CPM	./results/normalization/prnet_cpm_norm_res.pkl	./data/normalization/sciplex_cpm_filt.h5ad	None
+Null_Baseline	normalization	shifted_logarithm	./results/normalization/null_shiftedlog_norm_res.pkl	./data/normalization/sciplex_shiftedlog_filt.h5ad	None
+Mean_Baseline	normalization	shifted_logarithm	./results/normalization/mean_shiftedlog_norm_res.pkl	./data/normalization/sciplex_shiftedlog_filt.h5ad	None
+Decoder	normalization	shifted_logarithm	./results/normalization/decoder_shiftedlog_norm_res.pkl	./data/normalization/sciplex_shiftedlog_filt.h5ad	None
+MLP	normalization	shifted_logarithm	./results/normalization/mlp_shiftedlog_norm_res.pkl	./data/normalization/sciplex_shiftedlog_filt.h5ad	None
+PRNet	normalization	shifted_logarithm	./results/normalization/prnet_shiftedlog_norm_res.pkl	./data/normalization/sciplex_shiftedlog_filt.h5ad	None
+Null_Baseline	normalization	analytic_pearson	./results/normalization/null_analyticpearson_norm_res.pkl	./data/normalization/sciplex_analyticpearson_filt.h5ad	None
+Mean_Baseline	normalization	analytic_pearson	./results/normalization/mean_analyticpearson_norm_res.pkl	./data/normalization/sciplex_analyticpearson_filt.h5ad	None
+Decoder	normalization	analytic_pearson	./results/normalization/decoder_analyticpearson_norm_res.pkl	./data/normalization/sciplex_analyticpearson_filt.h5ad	None
+MLP	normalization	analytic_pearson	./results/normalization/mlp_analyticpearson_norm_res.pkl	./data/normalization/sciplex_analyticpearson_filt.h5ad	None
+PRNet	normalization	analytic_pearson	./results/normalization/prnet_analyticpearson_norm_res.pkl	./data/normalization/sciplex_analyticpearson_filt.h5ad	None
+Null_Baseline	normalization	raw	./results/normalization/null_rawcount_norm_res.pkl	./data/normalization/sciplex_raw_filt.h5ad	10000
+Mean_Baseline	normalization	raw	./results/normalization/mean_rawcount_norm_res.pkl	./data/normalization/sciplex_raw_filt.h5ad	10000
+Decoder	normalization	raw	./results/normalization/decoder_rawcount_norm_res.pkl	./data/normalization/sciplex_raw_filt.h5ad	10000
+MLP	normalization	raw	./results/normalization/mlp_rawcount_norm_res.pkl	./data/normalization/sciplex_raw_filt.h5ad	10000
+PRNet	normalization	raw	./results/normalization/prnet_rawcount_norm_res.pkl	./data/normalization/sciplex_raw_filt.h5ad	10000
+Null_Baseline	normalization	CPM	./results/normalization/null_cpm_norm_res.pkl	./data/normalization/sciplex_cpm_filt.h5ad	10000
+Mean_Baseline	normalization	CPM	./results/normalization/mean_cpm_norm_res.pkl	./data/normalization/sciplex_cpm_filt.h5ad	10000
+Decoder	normalization	CPM	./results/normalization/decoder_cpm_norm_res.pkl	./data/normalization/sciplex_cpm_filt.h5ad	10000
+MLP	normalization	CPM	./results/normalization/mlp_cpm_norm_res.pkl	./data/normalization/sciplex_cpm_filt.h5ad	10000
+PRNet	normalization	CPM	./results/normalization/prnet_cpm_norm_res.pkl	./data/normalization/sciplex_cpm_filt.h5ad	10000
+Null_Baseline	normalization	shifted_logarithm	./results/normalization/null_shiftedlog_norm_res.pkl	./data/normalization/sciplex_shiftedlog_filt.h5ad	10000
+Mean_Baseline	normalization	shifted_logarithm	./results/normalization/mean_shiftedlog_norm_res.pkl	./data/normalization/sciplex_shiftedlog_filt.h5ad	10000
+Decoder	normalization	shifted_logarithm	./results/normalization/decoder_shiftedlog_norm_res.pkl	./data/normalization/sciplex_shiftedlog_filt.h5ad	10000
+MLP	normalization	shifted_logarithm	./results/normalization/mlp_shiftedlog_norm_res.pkl	./data/normalization/sciplex_shiftedlog_filt.h5ad	10000
+PRNet	normalization	shifted_logarithm	./results/normalization/prnet_shiftedlog_norm_res.pkl	./data/normalization/sciplex_shiftedlog_filt.h5ad	10000
+Null_Baseline	normalization	analytic_pearson	./results/normalization/null_analyticpearson_norm_res.pkl	./data/normalization/sciplex_analyticpearson_filt.h5ad	10000
+Mean_Baseline	normalization	analytic_pearson	./results/normalization/mean_analyticpearson_norm_res.pkl	./data/normalization/sciplex_analyticpearson_filt.h5ad	10000
+Decoder	normalization	analytic_pearson	./results/normalization/decoder_analyticpearson_norm_res.pkl	./data/normalization/sciplex_analyticpearson_filt.h5ad	10000
+MLP	normalization	analytic_pearson	./results/normalization/mlp_analyticpearson_norm_res.pkl	./data/normalization/sciplex_analyticpearson_filt.h5ad	10000
+PRNet	normalization	analytic_pearson	./results/normalization/prnet_analyticpearson_norm_res.pkl	./data/normalization/sciplex_analyticpearson_filt.h5ad	10000
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
